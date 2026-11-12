@@ -76,3 +76,5 @@ Origen: P = revisión propia · IA = revisión cruzada
 | R-66 | IA (no solicitado) | CA-103 | Tras R-36, CA-103 seguía hablando de "caché de sesión", cuando la caché ya dura hasta `time_next_update_unix` | Cambiar el resultado esperado a "no se repiten peticiones a la API de cambio mientras no se alcance `time_next_update_unix` (RF-41)" | Aplicada |
 
 La IA generó CLAUDE.md y architecture.md fuera del alcance de esta primera fase de especificaciones, se apartan para la fase de arquitectura.
+
+## Fase 2 - Arquitectura
