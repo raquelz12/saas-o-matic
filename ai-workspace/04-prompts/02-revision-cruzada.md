@@ -1,5 +1,7 @@
 # 02- Revisión cruzada con IA
 
+## Prompt inicial
+
 Eres un revisor técnico senior. Te paso el enunciado y el documento de especificación. No la reescribas. Busca y lista numeradas:
 
 1. Contradicciones internas entre secciones.
@@ -9,3 +11,7 @@ Eres un revisor técnico senior. Te paso el enunciado y el documento de especifi
 5. Ejemplos numéricos incorrectos (recalcúlalos).
 
 Para cada punto dame lo siguiente: ID, origen, sección y problema
+
+## Respuesta de la IA
+
+Revisar RXX de 05-review-log.md con origen "IA".

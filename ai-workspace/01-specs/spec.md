@@ -12,6 +12,11 @@
 
 ---
 
+## Changelog
+- v0.1 - Versión inicial a partir de mis decisiones (04-prompts/01-spec-inicial.md)
+- v1.0 — Aplicada la revisión propia y la cruzada (05-review-log.md (Fase 1))
+
+
 ## 1. Requisitos funcionales
 
 ### 1.1 Clientes — alta (backend)
@@ -19,9 +24,9 @@
 | ID | Título | Definición |
 |---|---|---|
 | RF-01 | Alta de cliente | La herramienta debe permitir registrar un cliente corporativo mediante `POST /customers`, con cinco campos obligatorios: nombre de empresa, identificador fiscal, email de contacto, país y plan. |
-| RF-02 | Normalización del nombre | La herramienta debe normalizar el nombre de empresa a Unicode NFC, eliminar los espacios iniciales y finales y colapsar los espacios internos repetidos en uno solo. Tras normalizar, debe exigir una longitud de 2 a 100 code points, aceptar cualquier carácter Unicode salvo los de control y guardar el valor sin sanear el HTML. |
-| RF-03 | Normalización del email | La herramienta debe eliminar los espacios iniciales y finales del email y convertirlo a minúsculas. Debe exigir un máximo de 254 caracteres y validar el formato con el validador de email de la librería de esquemas (zod), sin regex propio. |
-| RF-04 | Normalización del identificador fiscal | La herramienta debe eliminar los espacios, guiones y puntos del identificador fiscal y convertirlo a mayúsculas. Tras normalizar, debe exigir que sea alfanumérico y tenga entre 5 y 20 caracteres, y guardar el valor normalizado. |
+| RF-02 | Normalización del nombre | La herramienta debe normalizar el nombre de empresa a Unicode NFC, eliminar los espacios iniciales y finales y colapsar cada secuencia de espacios internos en un único U+0020. Se considera espacio cualquier carácter `\s` Unicode (incluidos NBSP y U+2009). Tras normalizar, debe exigir una longitud de 2 a 100 code points (`[...s].length`, igual que `length()` de SQLite). Debe rechazar con `INVALID_FORMAT` los caracteres de las categorías `\p{Cc}` (control), `\p{Cf}` (formato, p. ej. U+200B o U+202E) y `\p{Cs}` (surrogates sueltos), asumiendo que esto excluye los emojis compuestos con ZWJ. El resto de caracteres Unicode se acepta y el valor se guarda sin sanear el HTML. |
+| RF-03 | Normalización del email | La herramienta debe eliminar los espacios iniciales y finales del email y convertirlo a minúsculas. Debe exigir un máximo de 254 code points y validar el formato con `z.email()` de zod 4 (versión fijada), sin regex propio. |
+| RF-04 | Normalización del identificador fiscal | La herramienta debe eliminar del identificador fiscal cualquier espacio `\s` Unicode, los guiones y los puntos, y convertirlo a mayúsculas. Tras normalizar, debe exigir que sea alfanumérico (`A–Z`, `0–9`, comprobado después de pasar a mayúsculas) y tenga entre 5 y 20 code points, y guardar el valor normalizado. |
 | RF-05 | Validación de identificador español | La herramienta debe validar, cuando el país sea `ES`, que el identificador normalizado sea un DNI, un NIE (X/Y/Z), un CIF o un NIF especial (K/L/M) válido según el algoritmo oficial de control. El tipo se deduce del formato y no se guarda. En el CIF, el carácter de control se acepta como dígito o como letra según la regla oficial de cada letra inicial. Un identificador con el prefijo `ES` (NIF-IVA) se rechaza. |
 | RF-06 | Validación de identificador no español | La herramienta debe aplicar, cuando el país no sea `ES`, solo la validación genérica de RF-04, sin algoritmo de control. |
 | RF-07 | Unicidad fiscal | La herramienta debe rechazar con 409 un alta cuyo par (país, identificador normalizado) ya exista. El email y el nombre de empresa no son únicos. |
@@ -33,11 +38,11 @@
 
 | ID | Título | Definición |
 |---|---|---|
-| RF-11 | Búsqueda de clientes | La herramienta debe ofrecer `GET /customers?search=`, que devuelve los clientes cuyo nombre o identificador fiscal contiene el texto buscado, combinando ambos criterios con OR. |
+| RF-11 | Búsqueda de clientes | La herramienta debe ofrecer `GET /customers?search=`, que devuelve los clientes cuyo nombre o identificador fiscal contiene el texto buscado, combinando ambos criterios con OR. Los caracteres `\`, `%` y `_` del texto buscado se escapan y la consulta usa `LIKE ? ESCAPE '\'`, de modo que se buscan literalmente. |
 | RF-12 | Búsqueda por nombre | La herramienta debe buscar por nombre con coincidencia parcial, insensible a mayúsculas y a acentos (la "ñ" equivale a "n"), sobre una columna auxiliar normalizada. |
-| RF-13 | Búsqueda por identificador | La herramienta debe aplicar al texto buscado la misma normalización de RF-04 y buscar coincidencias parciales sobre el identificador normalizado. |
+| RF-13 | Búsqueda por identificador | La herramienta debe aplicar al texto buscado solo las transformaciones de RF-04, sin sus validaciones (el único límite es el máximo de 100 caracteres de `search`), y buscar coincidencias parciales sobre el identificador normalizado. Si `search` queda vacío tras el trim, se devuelven todos los clientes (RF-14). Si la rama de identificador normaliza a vacío (p. ej. `-` o `.`), se omite y solo se busca por nombre. |
 | RF-14 | Búsqueda vacía | La herramienta debe devolver todos los clientes, paginados, cuando `search` esté vacío o ausente. |
-| RF-15 | Orden de búsqueda | La herramienta debe ordenar los resultados de búsqueda por nombre de empresa. |
+| RF-15 | Orden de búsqueda | La herramienta debe ordenar los resultados de búsqueda con `ORDER BY company_name_search, id`, para que el orden no dependa de mayúsculas ni acentos y la paginación sea determinista. |
 | RF-16 | Detalle de cliente | La herramienta debe devolver un cliente mediante `GET /customers/:id`, o un 404 si no existe. |
 | RF-17 | Catálogo de países | La herramienta debe ofrecer `GET /countries`, que devuelve los países soportados leídos de la tabla de tasas. |
 
@@ -48,10 +53,10 @@
 | RF-18 | Registro de simulación | La herramienta debe registrar mediante `POST /simulations` una simulación con `customer_id`, usuarios activos, almacenamiento (GB) y llamadas a la API (por mes). Debe calcular el coste y persistir las entradas y el resultado. |
 | RF-19 | Cliente inexistente | La herramienta debe rechazar con 404 una simulación cuyo `customer_id` no exista. |
 | RF-20 | Rangos de entrada | La herramienta debe exigir que los tres campos numéricos sean números JSON enteros, sin decimales ni negativos, dentro de estos rangos: usuarios de 1 a 1000, almacenamiento de 0 a 100 000 GB y llamadas de 0 a 1 000 000 al mes. Fuera de tipo o de rango debe responder 422. |
-| RF-21 | Cálculo por tramos | La herramienta debe calcular la base mensual de forma acumulativa. Los usuarios 1–10 se cobran a 1000 céntimos cada uno, los usuarios 11–50 a 800 céntimos y los usuarios 51 en adelante a 500 céntimos. Los tramos son contiguos y no se solapan. |
+| RF-21 | Cálculo por tramos | La herramienta debe calcular la base mensual de forma acumulativa. Los usuarios 1–10 se cobran a 1000 céntimos cada uno, los usuarios 11–50 a 800 céntimos y los usuarios 51 en adelante a 500 céntimos. Los tramos son contiguos y no se solapan. Los precios son constantes del módulo de dominio `pricing` y no se guardan en base de datos. La trazabilidad de lo cobrado la da el desglose persistido en cada simulación (RF-24). |
 | RF-22 | Cálculo del impuesto | La herramienta debe calcular el impuesto como `half_up(base × tasa)` en céntimos, con la tasa del país del cliente leída de la tabla de tasas, y el total como `base + impuesto`. |
 | RF-23 | Conceptos sin coste | La herramienta debe guardar el almacenamiento y las llamadas a la API sin incluirlos en el cálculo del coste. |
-| RF-24 | Persistencia del resultado | La herramienta debe guardar la base, el impuesto y el total en céntimos de EUR, junto con la tasa aplicada en ese momento. Así, un cambio posterior de la tasa no altera las simulaciones guardadas. |
+| RF-24 | Persistencia del resultado | La herramienta debe guardar la base, el impuesto y el total en céntimos de EUR, junto con la tasa aplicada en ese momento y el desglose por tramos aplicado. Así, un cambio posterior de la tasa o de los precios no altera las simulaciones guardadas. |
 | RF-25 | Inmutabilidad de la simulación | La herramienta no debe permitir modificar ni borrar una simulación guardada. Un cambio requiere registrar una simulación nueva. |
 | RF-26 | Previsualización | La herramienta debe ofrecer `POST /simulations/preview`, con el mismo body, las mismas validaciones y el mismo cálculo que `POST /simulations`, y devolver el resultado sin persistir nada. |
 | RF-27 | Historial de simulaciones | La herramienta debe devolver las simulaciones de un cliente mediante `GET /customers/:id/simulations`, ordenadas de la más reciente a la más antigua y paginadas, o un 404 si el cliente no existe. |
@@ -63,7 +68,7 @@
 | RF-28 | Paginación | La herramienta debe paginar los listados con los parámetros `page` (por defecto 1) y `pageSize` (por defecto 20, máximo 100), y devolver `{ items, page, pageSize, total }`. Debe responder 422 si `page < 1`, si `pageSize` está fuera de 1–100 o si alguno de los dos no es un entero. |
 | RF-29 | Esquema estricto | La herramienta debe rechazar con 422 cualquier body con campos no definidos en el contrato. |
 | RF-30 | Formato de error uniforme | La herramienta debe responder todos los errores con `{ error: { code, message, details: [{ field, issue }] } }`. |
-| RF-31 | Códigos de error | La herramienta debe responder 400 para JSON malformado, 404 para un recurso inexistente, 409 para un duplicado y 422 para un error de validación. |
+| RF-31 | Códigos de error | La herramienta debe responder con los códigos HTTP y los `error.code` del catálogo de la sección 3.2. |
 | RF-32 | Tasas configurables | La herramienta debe leer las tasas de impuesto de una tabla de la base de datos. Valores iniciales: ES 21 %, FR 20 %, DE 19 %, IT 22 %, PT 23 % (continental), NL 21 % y GB 20 %, almacenadas en puntos básicos (2100 = 21 %). |
 | RF-33 | Marcas de tiempo | La herramienta debe registrar `created_at` en ISO 8601 UTC en clientes y simulaciones, con identificadores enteros autoincrementales. |
 
@@ -71,16 +76,16 @@
 
 | ID | Título | Definición |
 |---|---|---|
-| RF-34 | Buscador y dashboard | La herramienta debe ofrecer un buscador por nombre de empresa o identificador fiscal que muestre los resultados paginados. |
-| RF-35 | Detalle en tarjetas | La herramienta debe mostrar en tarjetas responsive los datos del cliente y su historial paginado de simulaciones con base, impuesto, total, tasa aplicada y fecha. |
-| RF-36 | Formulario de alta de cliente | La herramienta debe ofrecer un formulario de registro de clientes con nombre de empresa, identificador fiscal, email, país y plan. Debe mostrar asociados a cada campo los errores de validación que devuelva `POST /customers`, incluido el de duplicado (409). |
+| RF-34 | Buscador y dashboard | La herramienta debe ofrecer un dashboard formado por un buscador por nombre de empresa o identificador fiscal, el listado paginado de resultados y un botón de alta de cliente, sin KPIs. El buscador lanza la búsqueda con un debounce de 300 ms y cada cambio de texto vuelve a la página 1. |
+| RF-35 | Detalle en tarjetas | La herramienta debe mostrar en tarjetas responsive los datos del cliente y su historial paginado de simulaciones. Cada simulación muestra fecha, usuarios, GB, llamadas, base, impuesto, total y tasa aplicada, con el desglose por tramos en un desplegable. |
+| RF-36 | Formulario de alta de cliente | La herramienta debe ofrecer un formulario de registro de clientes con nombre de empresa, identificador fiscal, email, país y plan. Debe mostrar asociados a cada campo los errores de validación que devuelva `POST /customers`, incluido el de duplicado (409). Antes de medir longitudes aplica el trim y el colapso de espacios, y el mensaje de error definitivo es siempre el del backend (3.7). |
 | RF-37 | Catálogos del formulario | La herramienta debe obtener la lista de países de `GET /countries` y mostrar sus nombres con `Intl.DisplayNames`. Los planes se definen como enum en el frontend. |
-| RF-38 | Simulación interactiva | La herramienta debe ofrecer un slider de usuarios de 1 a 500 y controles para el almacenamiento y las llamadas a la API. Al cambiar cualquiera de ellos, debe mostrar en tiempo real la proyección de base, impuesto y total obtenida de `POST /simulations/preview`. |
-| RF-39 | Guardado de simulación | La herramienta debe permitir guardar la simulación actual mediante `POST /simulations` y reflejarla en el historial del cliente. |
-| RF-40 | Selector de divisa | La herramienta debe permitir elegir EUR, USD, GBP o JPY como divisa de visualización, y aplicar la elección a toda la aplicación: proyección, historial y tarjetas. |
-| RF-41 | Tipos de cambio | La herramienta debe obtener los tipos de cambio de una API pública con base EUR (p. ej. `open.er-api.com/v6/latest/EUR`), cachearlos en memoria durante la sesión y mostrar la fecha de la tasa usada. |
-| RF-42 | Conversión de visualización | La herramienta debe convertir la base y el impuesto por separado, redondear cada uno con half-up a los decimales de la divisa según `Intl.NumberFormat` (JPY sin decimales) y mostrar como total la suma de ambos importes ya redondeados. |
-| RF-43 | Estados de la API de cambio | La herramienta debe mostrar un estado de carga mientras obtiene los tipos de cambio. Si la API falla, debe mostrar un aviso, mostrar los importes en EUR, deshabilitar el selector de divisa y ofrecer un botón de reintento. |
+| RF-38 | Simulación interactiva | La herramienta debe ofrecer en el detalle del cliente un simulador que use el `customerId` de ese cliente, con un slider de usuarios de 1 a 500 y controles para el almacenamiento y las llamadas a la API. Cualquier cambio en cualquiera de los tres controles lanza `POST /simulations/preview` con un debounce de 250 ms. Cada petición lleva su propio `AbortController` y solo se pinta la respuesta de la última petición lanzada. El simulador debe mostrar en tiempo real la proyección de base, impuesto y total. |
+| RF-39 | Guardado de simulación | La herramienta debe permitir guardar la simulación actual mediante `POST /simulations` y reflejarla en el historial del cliente. El botón Guardar se deshabilita mientras la petición está en curso, para evitar duplicados por doble clic; se descarta usar una idempotency key. Tras guardar, se vuelve a pedir la página 1 del historial y el formulario conserva sus valores. |
+| RF-40 | Selector de divisa | La herramienta debe permitir elegir EUR, USD, GBP o JPY como divisa de visualización, y aplicar la elección a toda la aplicación: proyección, historial y tarjetas. La divisa por defecto es EUR, y la elección se guarda en `localStorage` (lectura y escritura dentro de try/catch) para que persista al recargar. |
+| RF-41 | Tipos de cambio | La herramienta debe obtener los tipos de cambio de una API pública con base EUR (p. ej. `open.er-api.com/v6/latest/EUR`). Debe validar la respuesta con zod: `result === "success"` y las cuatro divisas presentes como número finito > 0; si no cumple, se trata como un fallo (RF-43). Los tipos se cachean en memoria hasta `time_next_update_unix` y al caducar se piden de nuevo. Como fecha de la tasa se muestra `time_last_update_utc` en hora local con el locale `es-ES`, y en el pie aparece el enlace de atribución que pide open.er-api. |
+| RF-42 | Conversión de visualización | La herramienta debe convertir la base y el impuesto por separado, redondear cada uno con half-up a los decimales de la divisa según `Intl.NumberFormat` (JPY sin decimales) y mostrar como total la suma de ambos importes ya redondeados. La conversión y el redondeo se hacen con `big.js` (`roundHalfUp`), nunca con `Math.round` sobre floats, que falla en casos como `1.005`. El formato usa siempre el locale fijo `es-ES`. |
+| RF-43 | Estados de carga, error y vacío | La herramienta debe mostrar un estado de carga mientras obtiene los tipos de cambio, con un timeout de 5 s (`AbortSignal.timeout`); al vencer, se pasa al estado de error. Si la API falla y no hay tipos en caché, debe mostrar un aviso, mostrar los importes en EUR, deshabilitar el selector de divisa y ofrecer un botón de reintento. Si ya hay tipos en caché y falla el refresco, sigue usándolos y muestra su fecha. El reintento es siempre manual. Además, cada vista tiene estado de carga, de error con reintento y vacío. Si falla el preview, se mantiene la última proyección con un aviso. |
 | RF-44 | Escapado de contenido | La herramienta debe escapar todo texto procedente del backend al pintarlo. |
 
 ### 1.6 Fuera de alcance
@@ -89,16 +94,26 @@
 - Coste por almacenamiento o por llamadas a la API.
 - Conversión de divisa en el backend.
 - Endpoints para modificar las tasas: se cambian directamente en la tabla.
+- Autenticación (ver RNF-03).
 
 ### 1.7 Simplificaciones y limitaciones documentadas
 
 - **IVA:** se aplica siempre la tasa general del país del cliente. No se contemplan la inversión del sujeto pasivo intracomunitaria, los tipos reducidos ni los regímenes territoriales (Canarias, Azores, Madeira).
-- **Enteros en JSON:** JSON no distingue `10` de `10.0`, así que `10.0` se recibe y acepta como 10. Las cadenas (`"10"`) se rechazan.
+- **Enteros en JSON:** JSON no distingue `10` de `10.0`, así que `10.0` se recibe y acepta como 10. Del mismo modo, `1e3` se acepta como 1000 y `-0` como 0. Las cadenas (`"10"`) se rechazan.
+- **Búsqueda sin diacríticos:** `ß`, `æ`, `ø` y `ł` no se descomponen con NFD, así que, por ejemplo, `lodz` no encuentra `Łódź`. Es una limitación conocida.
 - **Diferencia slider / API:** el slider limita a 500 usuarios por usabilidad, y la API acepta hasta 1000 como protección frente a valores absurdos.
 
 ### 1.8 Pendientes
 
 Ninguno.
+
+### 1.9 Requisitos no funcionales y entorno
+
+| ID | Título | Definición |
+|---|---|---|
+| RNF-01 | Versión de Node | La herramienta debe usar Node 22 LTS, fijado en `.nvmrc` y en el campo `engines` de `package.json`. |
+| RNF-02 | Configuración | La herramienta debe incluir un `.env.example` en el backend (`PORT`, `HOST`, `DB_PATH`, `CORS_ORIGIN`) y otro en el frontend (`VITE_API_URL`, `VITE_FX_URL`). |
+| RNF-03 | Acceso | La herramienta no tiene autenticación: es una herramienta interna en local, y el backend escucha por defecto en `HOST=127.0.0.1`. |
 
 ---
 
@@ -177,9 +192,9 @@ Como la base es un entero, este cálculo equivale a redondear el total con half-
 | 51 | GB (2000) | 42 500 | 8 500 | 51 000 |
 | 1000 | IT (2200) | 517 000 | 113 740 | 630 740 |
 
-**RB-08 — Redondeo half-up.** Con precios en euros enteros y tasas de porcentaje entero, el impuesto en EUR siempre sale exacto. El redondeo solo actúa si en el futuro hay una tasa con decimales. Ejemplo **hipotético**, solo para pruebas y con una tasa que no es real: u = 1, tasa 2105 bp → 1000 × 0,2105 = 210,5 → impuesto 211, total 1211.
+**RB-08 — Redondeo half-up.** Con precios en euros enteros y tasas de porcentaje entero, el impuesto siempre sale exacto en céntimos. El redondeo solo actúa si en el futuro hay una tasa con decimales. Ejemplo **hipotético**, solo para pruebas y con una tasa que no es real: u = 1, tasa 2105 bp → 1000 × 0,2105 = 210,5 → impuesto 211, total 1211.
 
-**RB-09 — Snapshot de la tasa.** Cada simulación guarda la tasa aplicada (`tax_rate_bp`). Si la tabla cambia después, las simulaciones existentes conservan su tasa y sus importes. Ejemplo: una simulación ES guardada con 2100 sigue mostrando 2100 aunque la tabla pase a 2200. Una simulación nueva usaría 2200.
+**RB-09 — Snapshot de la tasa.** Cada simulación guarda la tasa aplicada (`tax_rate_bp`). Si la tabla cambia después, las simulaciones existentes conservan su tasa y sus importes. Ejemplo: una simulación ES guardada con 2100 sigue mostrando 2100 aunque la tabla pase a 2200. Una simulación nueva usaría 2200. El desglose por tramos también se guarda como snapshot (`tiers_json`), y el historial devuelve el guardado sin recalcularlo, de modo que Σ `subtotalCents` = `baseCents` aunque cambien los precios.
 
 ### 2.3 Persistencia y previsualización
 
@@ -202,7 +217,7 @@ Como la base es un entero, este cálculo equivale a redondear el total con half-
 
 **RB-13 — Coincidencia.** El texto buscado se normaliza de dos formas y se compara con OR:
 
-- Para el nombre: minúsculas y sin diacríticos, comparado como subcadena con la columna auxiliar.
+- Para el nombre: la misma función que genera `company_name_search` (normalización de RF-02, minúsculas y sin diacríticos), comparada como subcadena con la columna auxiliar.
 - Para el identificador: la normalización de RF-04, comparada como subcadena con el identificador guardado.
 
 | Búsqueda | Encuentra |
@@ -231,7 +246,7 @@ El total **no** se convierte directamente, así que puede diferir en una unidad 
 | EUR | 1 | 140,00 | 29,40 | 169,40 | 169,40 |
 | USD | 1,0850 | 151,90 | 31,90 (31,899) | 183,80 | 183,80 |
 | GBP | 0,8650 | 121,10 | 25,43 (25,431) | 146,53 | 146,53 |
-| JPY | 162,37 | 22 732 (22 731,8) | 4 774 (4 773,678) | 27 506 | 27 505 (27 505,478) |
+| JPY | 162,37 | 22.732 (22.731,8) | 4774 (4773,678) | 27.506 | 27.505 (27.505,478) |
 
 En el caso de JPY se ve la diferencia de una unidad descrita en RB-14.
 
@@ -241,22 +256,22 @@ En el caso de JPY se ve la diferencia de una unidad descrita en RB-14.
 
 ## 3. Validaciones
 
-> Los nombres de campo son provisionales y se fijan en la sección 5 (contrato).
+> Los nombres de campo son los del contrato de la sección 5.
 
 ### 3.1 Orden de procesamiento
 
-Cada petición se procesa en este orden y se detiene en el primer paso que falle:
-
-1. **Parseo:** si el JSON es inválido → 400 `MALFORMED_JSON`.
-2. **Esquema:** campos desconocidos, campos ausentes, `null` o tipo incorrecto → 422.
+1. **Recepción** (POST): `Content-Type` no aceptado → 415 `UNSUPPORTED_MEDIA_TYPE`, comprobado antes del parseo; body > 10 kB → 413 `PAYLOAD_TOO_LARGE`; JSON inválido o vacío → 400 `MALFORMED_JSON`.
+2. **Esquema:** JSON válido que no es un objeto (`[]`, `null`, `42`) → 422 con `details: [{ field: "body", issue: "INVALID_TYPE" }]`. Campos desconocidos, ausentes, `null` o con tipo incorrecto → 422.
 3. **Normalización** de los strings (RF-02, RF-03, RF-04).
-4. **Formato y rango** sobre los valores ya normalizados → 422.
-5. **Algoritmo de control** del identificador fiscal, solo si `country = ES` → 422.
-6. **Reglas de existencia:** país en la tabla → 422; cliente existente → 404; duplicado → 409.
+4. **Formato y rango** sobre los valores ya normalizados, incluido que el país esté en la tabla de tasas y que el plan sea válido → 422.
+5. **Algoritmo de control** del identificador fiscal. Solo se ejecuta si `country` ya es válido y vale `ES`, y si `taxId` pasó el formato genérico del paso 4 → 422.
+6. **Reglas de existencia:** cliente inexistente → 404; duplicado → 409.
+
+Los pasos 2 a 5 forman una única fase de validación que acumula todos los errores de campo en un solo 422. Un campo que falla en un paso no se evalúa en los siguientes. Los pasos 1 (415, 413 y 400) y 6 (404 y 409) cortan el procesamiento en el primer fallo.
 
 ### 3.2 Catálogo de errores
 
-**Código general (`error.code`):** `MALFORMED_JSON` (400), `NOT_FOUND` (404), `METHOD_NOT_ALLOWED` (405), `DUPLICATE` (409), `UNSUPPORTED_MEDIA_TYPE` (415), `VALIDATION_ERROR` (422), `INTERNAL_ERROR` (500).
+**Código general (`error.code`):** `MALFORMED_JSON` (400), `NOT_FOUND` (404), `METHOD_NOT_ALLOWED` (405), `DUPLICATE` (409), `PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415), `VALIDATION_ERROR` (422), `INTERNAL_ERROR` (500).
 
 En un 422, `details[]` devuelve **todos** los errores de campo detectados, no solo el primero.
 
@@ -278,9 +293,9 @@ En un 422, `details[]` devuelve **todos** los errores de campo detectados, no so
 
 | Campo | Tipo JSON | Normalización | Reglas | Issue si falla |
 |---|---|---|---|---|
-| `companyName` | string | NFC, trim, colapso de espacios internos | 2–100 code points; sin caracteres de control (categoría Unicode Cc) | `INVALID_LENGTH` / `INVALID_FORMAT` |
-| `taxId` | string | Quitar espacios, `-` y `.`; mayúsculas | Solo `A–Z` y `0–9`; 5–20 caracteres; si `ES`, ver 3.6 | `INVALID_LENGTH` / `INVALID_FORMAT` / `INVALID_CHECKSUM` |
-| `email` | string | trim, minúsculas | ≤ 254 caracteres; formato según el validador de email de zod | `INVALID_LENGTH` / `INVALID_FORMAT` |
+| `companyName` | string | NFC, trim, colapso de espacios `\s` Unicode a U+0020 | 2–100 code points; sin caracteres `\p{Cc}`, `\p{Cf}` ni `\p{Cs}` | `INVALID_LENGTH` / `INVALID_FORMAT` |
+| `taxId` | string | Quitar espacios `\s` Unicode, `-` y `.`; mayúsculas | Solo `A–Z` y `0–9` (comprobado tras pasar a mayúsculas); 5–20 code points; si `ES`, ver 3.6 | `INVALID_LENGTH` / `INVALID_FORMAT` / `INVALID_CHECKSUM` |
+| `email` | string | trim, minúsculas | ≤ 254 code points; formato según `z.email()` (zod 4) | `INVALID_LENGTH` / `INVALID_FORMAT` |
 | `country` | string | trim, mayúsculas | Debe existir en la tabla de tasas | `UNSUPPORTED_VALUE` |
 | `plan` | string | trim, mayúsculas | `STARTER` \| `BUSINESS` \| `ENTERPRISE` | `UNSUPPORTED_VALUE` |
 
@@ -290,7 +305,7 @@ Todos los campos son obligatorios. Si el par (`country`, `taxId` normalizado) ya
 
 | Campo | Tipo JSON | Rango | Issue si falla |
 |---|---|---|---|
-| `customerId` | number entero | ≥ 1 | `INVALID_TYPE` / `OUT_OF_RANGE` |
+| `customerId` | number entero | 1–2 147 483 647 | `INVALID_TYPE` / `OUT_OF_RANGE` |
 | `users` | number entero | 1–1000 | `INVALID_TYPE` / `OUT_OF_RANGE` |
 | `storageGb` | number entero | 0–100 000 | `INVALID_TYPE` / `OUT_OF_RANGE` |
 | `apiCallsPerMonth` | number entero | 0–1 000 000 | `INVALID_TYPE` / `OUT_OF_RANGE` |
@@ -301,11 +316,13 @@ Las cadenas numéricas (`"10"`), los decimales (`10.5`) y los negativos se recha
 
 | Parámetro | Reglas | Error |
 |---|---|---|
-| `:id` en `/customers/:id` y `/customers/:id/simulations` | Entero ≥ 1 | 422 `INVALID_FORMAT` si no es entero ≥ 1; 404 si es válido y no existe |
-| `page` | Entero ≥ 1; por defecto 1 | 422 |
+| `:id` en `/customers/:id` y `/customers/:id/simulations` | Entero 1–2 147 483 647 | 422 `INVALID_FORMAT` si no cumple; 404 si es válido y no existe |
+| `page` | Entero 1–2 147 483 647; por defecto 1 | 422 |
 | `pageSize` | Entero 1–100; por defecto 20 | 422 |
 | `search` | String opcional; vacío = todos; máximo 100 caracteres | 422 `INVALID_LENGTH` |
 | Cualquier otro parámetro de query | No permitido | 422 `UNKNOWN_FIELD` |
+
+**Parseo de la query:** se usa el parser de query `simple`. `page` y `pageSize` deben cumplir `^[1-9][0-9]*$`, así que `1.0`, `+1` y `01` se rechazan con 422. Un parámetro repetido o en forma de array (p. ej. `search[]=`) → 422 `INVALID_TYPE`.
 
 ### 3.6 Algoritmo del identificador fiscal español (`country = ES`)
 
@@ -324,6 +341,11 @@ Todos los tipos españoles tienen exactamente **9 caracteres**. Si la longitud e
 | Cualquier otro (`I`, `O`, `T`, `Ñ`…) | — | `INVALID_FORMAT` |
 
 Si las posiciones centrales no son todas dígitos → `INVALID_FORMAT`.
+
+**Formato frente a checksum:**
+
+- Es `INVALID_FORMAT` si una posición tiene el tipo incorrecto o un carácter imposible: el control de un DNI, NIE o NIF especial fuera de la tabla de 23 letras (3.6.2), o el control de un CIF fuera de `0–9` y `JABCDEFGHI`.
+- Es `INVALID_CHECKSUM` si la estructura es válida pero el control no coincide o no tiene la forma exigida (3.6.6).
 
 #### 3.6.2 Tabla de letras (DNI, NIE, NIF especial)
 
@@ -387,6 +409,11 @@ Si el control no coincide o no tiene la forma exigida → `INVALID_CHECKSUM`.
 | `P12345674` | — | CIF | — | `INVALID_CHECKSUM` (P exige letra) |
 | `C12345674` / `C1234567D` | — | CIF | — | Ambos válidos |
 | `A87654323` | — | CIF | A = 15, B = 22, C = 37, D = 3 | Válido |
+| `00000000T` | — | DNI | 0 mod 23 = 0 → T | Válido (no hay lista negra) |
+| `X0000000T` | — | NIE | 00000000 mod 23 = 0 → T | Válido (no hay lista negra) |
+| `123456789` | — | DNI | El control es un dígito | `INVALID_FORMAT` |
+| `12345678U` | — | DNI | `U` no está en la tabla de 23 letras | `INVALID_FORMAT` |
+| `B1234567K` | — | CIF | `K` no está en `0–9` ni en `JABCDEFGHI` | `INVALID_FORMAT` |
 | `1234567Z` | — | — | 8 caracteres | `INVALID_FORMAT` |
 | `I1234567A` | — | — | Letra inicial no válida | `INVALID_FORMAT` |
 | `ESB12345674` | — | — | 11 caracteres | `INVALID_FORMAT` (prefijo ES rechazado) |
@@ -395,12 +422,13 @@ Si el control no coincide o no tiene la forma exigida → `INVALID_CHECKSUM`.
 
 - Un DNI con menos de 8 dígitos (p. ej. `1234567L`) se rechaza con `INVALID_FORMAT`. No se rellena con ceros.
 - Un CIF con los dígitos de provincia `00` no tiene ninguna restricción especial: se aplica la tabla de 3.6.6.
+- Manda el algoritmo oficial y no hay lista negra: identificadores como `00000000T` o `X0000000T`, válidos por algoritmo, se aceptan.
 
 ### 3.7 Frontend
 
 - El slider de usuarios limita a 1–500, y los controles de almacenamiento y llamadas limitan a los rangos de 3.4.
 - Los errores de `details[]` se muestran junto al campo indicado en `field`.
-- El formulario de alta valida en el cliente solo los campos obligatorios y las longitudes. El algoritmo del identificador fiscal se ejecuta únicamente en el backend, para no duplicar lógica.
+- El formulario de alta valida en el cliente solo los campos obligatorios y las longitudes, medidas después de aplicar trim y colapso de espacios. El mensaje definitivo siempre viene del backend. El algoritmo del identificador fiscal se ejecuta únicamente en el backend, para no duplicar lógica.
 
 ### 3.8 Pendientes de la sección
 
@@ -451,6 +479,7 @@ erDiagram
         INTEGER base_cents
         INTEGER tax_cents
         INTEGER total_cents
+        TEXT tiers_json
         TEXT created_at
     }
 ```
@@ -471,7 +500,7 @@ Es la fuente de verdad de los países soportados (RF-08) y del catálogo `GET /c
 | Columna | Tipo | Restricciones | Descripción |
 |---|---|---|---|
 | `id` | INTEGER | PK AUTOINCREMENT | — |
-| `company_name` | TEXT | NOT NULL | Nombre normalizado según RF-02, tal como se muestra |
+| `company_name` | TEXT | NOT NULL; `CHECK (length(company_name) BETWEEN 2 AND 100)` | Nombre normalizado según RF-02, tal como se muestra |
 | `company_name_search` | TEXT | NOT NULL | Columna auxiliar de búsqueda: el nombre normalizado, en minúsculas y sin diacríticos (NFD y eliminación de marcas combinantes). La calcula la aplicación al insertar |
 | `tax_id` | TEXT | NOT NULL; `CHECK (length(tax_id) BETWEEN 5 AND 20)` | Identificador normalizado según RF-04 |
 | `email` | TEXT | NOT NULL; `CHECK (length(email) <= 254)` | Email normalizado según RF-03 |
@@ -482,8 +511,12 @@ Es la fuente de verdad de los países soportados (RF-08) y del catálogo `GET /c
 **Restricciones e índices**
 
 - `UNIQUE (country_code, tax_id)`: aplica RF-07. Una violación de esta restricción se traduce en 409 `DUPLICATE`. Así se cubre también la carrera entre dos altas simultáneas.
-- `INDEX (company_name)`: sirve para el orden de RF-15.
+- `INDEX (company_name_search, id)`: sirve para el orden de RF-15.
 - La búsqueda parcial (`LIKE '%texto%'`) no puede usar índices. Es aceptable para el volumen esperado de una herramienta interna, y queda documentado como limitación.
+
+**Inmutabilidad (RF-10)**
+
+- Triggers `BEFORE UPDATE` y `BEFORE DELETE` sobre `customers` con `RAISE(ABORT, 'customers are immutable')`.
 
 ### 4.5 Tabla `simulations`
 
@@ -498,6 +531,7 @@ Es la fuente de verdad de los países soportados (RF-08) y del catálogo `GET /c
 | `base_cents` | INTEGER | NOT NULL; `CHECK (base_cents >= 0)` | — |
 | `tax_cents` | INTEGER | NOT NULL; `CHECK (tax_cents >= 0)` | — |
 | `total_cents` | INTEGER | NOT NULL; `CHECK (total_cents = base_cents + tax_cents)` | Garantiza la coherencia de RB-05 |
+| `tiers_json` | TEXT | NOT NULL; `CHECK (json_valid(tiers_json))` | Snapshot del desglose por tramos aplicado (array de `Tier`, ver 5.2). El historial lo devuelve tal cual, sin recalcularlo (RB-09) |
 | `created_at` | TEXT | NOT NULL; DEFAULT ISO UTC | — |
 
 **Índices**
@@ -520,7 +554,11 @@ Es la fuente de verdad de los países soportados (RF-08) y del catálogo `GET /c
 
 ### 4.7 Migraciones
 
-Hay un script de creación del esquema y otro de seed de `tax_rates`, idempotentes, que se ejecutan al arrancar el backend o con un comando de npm. El detalle se fija en el README (sección de despliegue).
+- **Esquema:** `npm run db:migrate`, idempotente.
+- **Seed de `tax_rates`:** `npm run db:seed`, con `INSERT OR IGNORE`, para que no revierta tasas editadas a mano.
+- **Driver:** `better-sqlite3`, que incluye su propio SQLite (≥ 3.37, necesario para `STRICT`).
+- **Puertos:** backend 3000, frontend 5173.
+- **Arranque:** el repositorio usa npm workspaces, y `npm run dev` arranca backend y frontend a la vez con `concurrently`.
 
 ---
 
@@ -530,8 +568,8 @@ Hay un script de creación del esquema y otro de seed de `tax_rates`, idempotent
 
 - **Formato:** peticiones y respuestas en `application/json; charset=utf-8`, con las claves en `camelCase`.
 - **Rutas:** todas llevan el prefijo `/api` (p. ej. `/api/customers`) y no tienen versionado. En este documento se omite el prefijo por brevedad.
-- **CORS:** el origen permitido se configura con la variable de entorno `CORS_ORIGIN`, cuyo valor por defecto es el origen del servidor de desarrollo del frontend (Vite, `http://localhost:5173`).
-- **POST:** exigen `Content-Type: application/json`.
+- **CORS:** el origen permitido se configura con la variable de entorno `CORS_ORIGIN`, cuyo valor por defecto es el origen del servidor de desarrollo del frontend (Vite, `http://localhost:5173`). Se usa CORS directamente, sin proxy de Vite. El middleware `cors` se monta antes del manejador de 405, de modo que el preflight `OPTIONS` responde 204.
+- **POST:** exigen `Content-Type: application/json`, sin distinguir mayúsculas y con o sin `charset=utf-8`. Cualquier otro tipo → 415, que se comprueba antes que el 400. El body tiene un límite de 10 kB (`express.json({ limit: '10kb' })`); si se supera → 413 `PAYLOAD_TOO_LARGE`.
 - **Query:** se rechazan los parámetros desconocidos (422 `UNKNOWN_FIELD`).
 - **Importes:** enteros en céntimos de EUR (`*Cents`) acompañados de `"currency": "EUR"`.
 - **Tasas:** enteros en puntos básicos (`taxRateBp`).
@@ -557,7 +595,8 @@ Hay un script de creación del esquema y otro de seed de `tax_rates`, idempotent
 | 400 | `MALFORMED_JSON` | El body no es JSON válido o está vacío en un POST |
 | 404 | `NOT_FOUND` | Ruta inexistente, o recurso inexistente |
 | 405 | `METHOD_NOT_ALLOWED` | Ruta existente con método no soportado (p. ej. `DELETE /customers/1`) |
-| 415 | `UNSUPPORTED_MEDIA_TYPE` | POST sin `Content-Type: application/json` |
+| 413 | `PAYLOAD_TOO_LARGE` | Body de más de 10 kB |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | POST con un `Content-Type` distinto de `application/json` |
 | 422 | `VALIDATION_ERROR` | Cualquier fallo de la sección 3, incluidos los parámetros de query desconocidos |
 | 500 | `INTERNAL_ERROR` | Error no controlado; `message` es genérico y no expone trazas |
 
@@ -591,7 +630,7 @@ Hay un script de creación del esquema y otro de seed de `tax_rates`, idempotent
 | `taxCents` | integer | — |
 | `totalCents` | integer | — |
 | `currency` | `"EUR"` | Siempre EUR |
-| `tiers` | Tier[] | Desglose por tramos. Se calcula a partir de `users` y no se persiste |
+| `tiers` | Tier[] | Desglose por tramos. En `Simulation` es el guardado en `tiers_json` y no se recalcula (RB-09); en `SimulationPreview` se calcula en el momento |
 | `createdAt` | string (ISO UTC) | — |
 
 **Tier**
@@ -683,7 +722,7 @@ Busca y lista clientes (RF-11 a RF-15).
 | `page` | integer | 1 | ≥ 1 |
 | `pageSize` | integer | 20 | 1–100 |
 
-**200 OK**: `Page<Customer>`, ordenado por `companyName`.
+**200 OK**: `Page<Customer>`, ordenado por `company_name_search` y después por `id` (RF-15).
 
 **Errores:** 422 (`search`, `page` o `pageSize` inválidos).
 
@@ -736,7 +775,7 @@ Calcula y persiste una simulación (RF-18 a RF-25).
 
 | Campo | Tipo | Obligatorio | Rango |
 |---|---|---|---|
-| `customerId` | integer | Sí | ≥ 1 |
+| `customerId` | integer | Sí | 1–2 147 483 647 |
 | `users` | integer | Sí | 1–1000 |
 | `storageGb` | integer | Sí | 0–100 000 |
 | `apiCallsPerMonth` | integer | Sí | 0–1 000 000 |
@@ -818,7 +857,7 @@ Calcula sin persistir (RF-26, RB-10).
 | POST | `/api/simulations` | 201 | 400, 404, 415, 422 |
 | POST | `/api/simulations/preview` | 200 | 400, 404, 415, 422 |
 
-Todos pueden devolver además 405 `METHOD_NOT_ALLOWED` y 500 `INTERNAL_ERROR`.
+Todos pueden devolver además 405 `METHOD_NOT_ALLOWED` y 500 `INTERNAL_ERROR`; los POST, también 413 `PAYLOAD_TOO_LARGE`.
 
 ### 5.11 Pendientes de la sección
 
@@ -870,7 +909,7 @@ Ninguno.
 | CA-22 | — | preview y guardado con el mismo body | Mismos importes, tasa y `tiers` |
 | CA-23 | El cliente tiene N simulaciones | preview | El historial sigue teniendo N simulaciones |
 | CA-24 | — | `POST /simulations` con `customerId` = 999 | 404 `NOT_FOUND` |
-| CA-25 | Simulación existente | `PUT` o `DELETE` sobre la ruta | 405 `METHOD_NOT_ALLOWED` |
+| CA-25 | Simulación existente | `PUT` o `DELETE` sobre `/simulations` | 405 `METHOD_NOT_ALLOWED`. Sobre `/simulations/:id` → 404 `NOT_FOUND`, porque esa ruta no existe |
 | CA-26 | Simulación existente | `UPDATE` o `DELETE` directo en SQLite | La operación aborta por el trigger |
 | CA-27 | — | Un `INSERT` directo con `total_cents` ≠ base + impuesto | Rechazo por `CHECK` |
 
@@ -948,6 +987,8 @@ Ninguno.
 | CA-80 | Cliente con 3 simulaciones | `GET /customers/1/simulations` | Las 3, de la más reciente a la más antigua |
 | CA-81 | Cliente sin simulaciones | `GET /customers/1/simulations` | 200, `items: []` |
 | CA-82 | — | `GET /countries` | 7 países ordenados por `code`, con su `taxRateBp` |
+| CA-106 | Ningún cliente contiene `%` | `?search=%` | 200, `items: []` (el `%` se busca literalmente) |
+| CA-107 | Ningún cliente contiene `_` | `?search=_` | 200, `items: []` (el `_` se busca literalmente) |
 
 ### 6.8 Errores transversales (RF-30, RF-31, sección 5.1)
 
@@ -972,12 +1013,24 @@ Ninguno.
 | CA-94 | Formulario de alta | Se envía un CIF inválido | El error se muestra junto al campo `taxId` |
 | CA-95 | Formulario de alta | Se envía un duplicado | El aviso de 409 se muestra en `taxId` |
 | CA-96 | Formulario de alta | Se abre | Los países vienen de `GET /countries` con nombres localizados, y los planes del enum |
-| CA-97 | Base 140,00 € e impuesto 29,40 €, con un tipo de cambio mock de JPY = 162,37 | Se selecciona JPY | Se muestra 22 732 + 4774 = 27 506 ¥, sin decimales (RB-15) |
+| CA-97 | Base 140,00 € e impuesto 29,40 €, con un tipo de cambio mock de JPY = 162,37 | Se selecciona JPY | Se muestra 22.732 + 4774 = 27.506 ¥, sin decimales y con formato `es-ES` (RB-15) |
 | CA-98 | Tipo de cambio mock de USD = 1,0850 | Se selecciona USD | Se muestra 151,90 + 31,90 = 183,80 $ |
 | CA-99 | Divisa USD seleccionada | Se navega del dashboard al detalle | Toda la aplicación sigue en USD |
 | CA-100 | La API de cambio responde con lentitud | Se carga la aplicación | Se muestra un estado de carga en el selector |
 | CA-101 | La API de cambio falla | Se carga la aplicación | Se muestra un aviso, los importes en EUR, el selector deshabilitado y un botón de reintento |
 | CA-102 | Tras el fallo de CA-101 | Se pulsa reintento y la API ya responde | Se habilita el selector |
-| CA-103 | Tipos ya cargados | Se cambia de divisa varias veces | No se repiten peticiones a la API de cambio (caché de sesión) |
+| CA-103 | Tipos ya cargados | Se cambia de divisa varias veces | No se repiten peticiones a la API de cambio mientras no se alcance `time_next_update_unix` (RF-41) |
 | CA-104 | Se muestran los tipos de cambio | — | Se ve la fecha de la tasa |
 | CA-105 | Cliente con nombre `<script>alert(1)</script>` | Se pinta en las tarjetas | Aparece como texto, sin ejecutarse |
+
+### 6.10 Estrategia de pruebas
+
+| Aspecto | Decisión |
+|---|---|
+| Framework | Vitest, en backend y frontend |
+| Unitarios | Dominio puro: `pricing`, `taxId`, `money` |
+| Integración | API con supertest sobre SQLite `:memory:` |
+| Frontend | Testing Library |
+| Trazabilidad | El nombre de cada test incluye su `CA-XX` |
+| Formato de importes | Los tests comparan contra la salida de `Intl.NumberFormat` con locale `es-ES`, no contra literales |
+| E2E | Descartado |
