@@ -1,4 +1,11 @@
 {
   "extends": "../tsconfig.base.json",
-  "include": ["src", "test", "vitest.config.ts"]
+  "compilerOptions": {
+    // TypeScript 6 ya no carga @types automáticamente: hay que declarar los de Node (T-03).
+    "types": ["node"]
+  },
+  "include": ["src", "test", "vitest.config.ts"],
+  // Fixtures de T-03 con imports prohibidos a propósito (p. ej. express, aún sin instalar):
+  // no se compilan; solo los lee backend/test/lint/layers.test.ts como texto.
+  "exclude": ["test/lint/fixtures"]
 }
