@@ -5,8 +5,8 @@
 ```
 saas-o-matic/
 ├── README.md                 # qué es y cómo arrancarlo en pocos pasos
-├── package.json              # workspaces; engines (Node 22, RNF-01); scripts dev, lint, typecheck, test, db:*
-├── .nvmrc                    # Node 22 (RNF-01)
+├── package.json              # workspaces; engines (Node 24, RNF-01); scripts dev, lint, typecheck, test, db:*
+├── .nvmrc                    # Node 24 (RNF-01)
 ├── eslint.config.js          # reglas de capas (sección 2)
 ├── .github/workflows/ci.yml  # lint + typecheck + test
 ├── ai-workspace/             # trabajo con la IA: spec, decisiones, prompts y review-log

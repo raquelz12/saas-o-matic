@@ -16,6 +16,7 @@
 - v0.1 - Versión inicial a partir de mis decisiones (04-prompts/01-spec-inicial.md)
 - v1.0 — Aplicada la revisión propia y la cruzada (05-review-log.md (Fase 1))
 - v1.1 — Aplicada la revisión de arquitectura (05-review-log.md (Fase 2)): R-69, R-70, R-71 y R-76
+- v1.2 — Node 24 LTS en lugar de 22 (05-review-log.md (Fase 4)): R-95
 
 
 ## 1. Requisitos funcionales
@@ -112,7 +113,7 @@ Ninguno.
 
 | ID | Título | Definición |
 |---|---|---|
-| RNF-01 | Versión de Node | La herramienta debe usar Node 22 LTS, fijado en `.nvmrc` y en el campo `engines` de `package.json`. |
+| RNF-01 | Versión de Node | La herramienta debe usar Node 24 LTS, fijado en `.nvmrc` y en el campo `engines` de `package.json`. |
 | RNF-02 | Configuración | La herramienta debe incluir un `.env.example` en el backend (`PORT`, `HOST`, `DB_PATH`, `CORS_ORIGIN`) y otro en el frontend (`VITE_API_URL`, `VITE_FX_URL`). |
 | RNF-03 | Acceso | La herramienta no tiene autenticación: es una herramienta interna en local, y el backend escucha por defecto en `HOST=127.0.0.1`. |
 
