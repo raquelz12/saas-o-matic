@@ -1,9 +1,10 @@
-# SaaS-O-Matic — Plan de implementación (v.02)
+# SaaS-O-Matic — Plan de implementación (v.04)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
 - v.02 — Aplicada la revisión del plan (05-review-log.md, fase 3): R-79 a R-94.
 - v.03 — Node 24 LTS en lugar de 22 (05-review-log.md, fase 4): R-95.
+- v.04 — Decisiones tomadas al implementar T-02: `App.tsx` añadido a sus archivos; dependencias implícitas (@types/react, @types/react-dom, @testing-library/dom); jsdom fijado en 29.x; opcionales de Testing Library no instaladas.
 
 ## Contexto
 
@@ -24,8 +25,9 @@ Reglas comunes a todas las tareas:
 |---|---|---|
 | T-01 | typescript, vitest, eslint, typescript-eslint, prettier | Stack de CLAUDE.md |
 | T-01 | tsx | **Fuera del stack.** Alternativa: type stripping nativo de Node 24 (sin flag). **Decidido en T-01: type stripping nativo; no se instala tsx** |
-| T-02 | react, react-dom, vite, @vitejs/plugin-react, @testing-library/react, jsdom, concurrently | Stack y spec 4.7. jsdom lo necesita Testing Library en Vitest |
-| T-02 | @testing-library/user-event, @testing-library/jest-dom | **Opcionales.** Alternativa: `fireEvent` y las aserciones de Vitest |
+| T-02 | react, react-dom, vite, @vitejs/plugin-react, @testing-library/react, jsdom, concurrently | Stack y spec 4.7. jsdom lo necesita Testing Library en Vitest. **Decidido en T-02: jsdom 29.x**, porque la 30 y la 31 exigen Node ≥ 24.15 y `engines` admite cualquier 24.x |
+| T-02 | @types/react, @types/react-dom, @testing-library/dom | **Añadidas en T-02.** Implícitas: los tipos para el typecheck y @testing-library/dom como dependencia de pares obligatoria de @testing-library/react |
+| T-02 | @testing-library/user-event, @testing-library/jest-dom | **Opcionales. Decidido en T-02: no se instalan**; se usan `fireEvent` y las aserciones de Vitest. Se pueden reconsiderar en M4 |
 | T-10b | express@5, cors, zod@4, supertest y sus @types | Stack |
 | T-11 | better-sqlite3 y @types/better-sqlite3 | Stack |
 | T-24a | react-router, @tanstack/react-query | Stack |
@@ -49,7 +51,7 @@ Reglas comunes a todas las tareas:
 - **Objetivo:** añadir el workspace `frontend/` con Vite, React, Vitest y Testing Library, y un `npm run dev` que arranque los dos workspaces.
 - **Referencias:** RNF-01, spec 4.7 (`concurrently`, puerto 5173).
 - **Depende de:** T-01.
-- **Archivos:** `frontend/package.json`, `frontend/tsconfig.json`, `frontend/vite.config.ts`, `frontend/index.html`, `frontend/src/main.tsx` (mínimo), `frontend/src/test/setup.ts`, `frontend/src/App.test.tsx` (smoke), y el script `dev` en el `package.json` raíz.
+- **Archivos:** `frontend/package.json`, `frontend/tsconfig.json`, `frontend/vite.config.ts`, `frontend/index.html`, `frontend/src/main.tsx` (mínimo), `frontend/src/App.tsx` (añadido en T-02: el test no puede importar `main.tsx`, que monta la aplicación al cargarse), `frontend/src/test/setup.ts`, `frontend/src/App.test.tsx` (smoke), y el script `dev` en el `package.json` raíz (con `--if-present` para el backend, que aún no tiene `dev`).
 - **Criterios:** `npm run dev` levanta Vite en 5173 (el backend todavía es un placeholder); lint, typecheck y test en verde en los dos workspaces.
 - **Tests:** un smoke test de render con Testing Library.
 - **Fuera de alcance:** router, TanStack Query, estilos, reglas de capas del frontend y `.env.example` del frontend.
