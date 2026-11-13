@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.06)
+# SaaS-O-Matic — Plan de implementación (v.07)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -7,6 +7,7 @@
 - v.04 — Decisiones tomadas al implementar T-02: `App.tsx` añadido a sus archivos; dependencias implícitas (@types/react, @types/react-dom, @testing-library/dom); jsdom fijado en 29.x; opcionales de Testing Library no instaladas.
 - v.05 — Decisiones tomadas al implementar T-03: `backend/tsconfig.json` añadido a sus archivos (excluir fixtures y tipos de Node); @types/node instalado; `max-lines-per-function` desactivada en los tests; límites sin contar líneas en blanco ni comentarios.
 - v.06 — Decisiones tomadas al implementar T-04: `package-lock.json` añadido a sus archivos (regenerado con npm 11.21 porque al de npm 11.6 le faltaban dependencias opcionales y `npm ci` fallaba en CI); npm local actualizado a la misma versión que el CI.
+- v.07 — Decisiones tomadas al implementar T-05: función `calculateBase(users)` con tipos `Tier` y `BaseBreakdown`; tramos como constante interna; CA-12 contrastado además con la fórmula de RB-01; fallo local de Vitest con rutas `/c/` de Git Bash documentado.
 
 ## Contexto
 
@@ -102,6 +103,14 @@ Reglas comunes a todas las tareas:
 - **Archivos:** `backend/src/modules/simulations/domain/pricing.ts` y `pricing.test.ts`.
 - **Criterios:** CA-01 a CA-08 a nivel de unidad; CA-12 como propiedad para todo `u` en 1..1000.
 - **Tests:** un test por fila de RB-03, más la propiedad Σ subtotales = base.
+- **Decisiones de T-05:**
+  - API: `calculateBase(users): BaseBreakdown`, con `BaseBreakdown = { baseCents, tiers }` y `Tier` tal como lo define la spec 5.2 (`to: null` en el tramo 3). T-06 la usará desde `calculateQuote`.
+  - Los tramos (RB-02) son una constante interna `TIERS`, sin exportar. Se exportará si alguna tarea posterior la necesita.
+  - `baseCents` se obtiene sumando los subtotales. Para que CA-12 no se cumpla por construcción, el test compara además, para todo `u` de 1 a 1000, `baseCents` con la fórmula de RB-01 escrita aparte en el test, y comprueba que Σ `units` = `u` y que ningún tramo tiene `units = 0`.
+  - No valida la entrada: el rango 1..1000 y que sea entero los garantiza el schema (CA-09 y CA-10 van en T-21).
+  - La fila u = 100 de RB-03 no tiene CA; su test se nombra `RB-03: …`.
+  - Los imports relativos llevan la extensión `.ts` (type stripping nativo, `allowImportingTsExtensions`).
+  - **Problema del entorno local:** desde Git Bash, `npm test` lanzado en la ruta POSIX `/c/Users/...` hace fallar todas las suites con «Vitest failed to find the runner». Ocurre también en main sin cambios. Con `C:/Users/...` o desde PowerShell pasan. No afecta al CI (Linux) y no se ha cambiado ninguna configuración.
 - **Fuera de alcance:** impuesto, validación de rangos (es del schema) y persistencia.
 
 ### T-06 · Impuesto half-up y `calculateQuote` [2 h]
