@@ -1,14 +1,14 @@
 # SaaS-O-Matic — Directrices para la IA
 
 ## Fuentes de verdad
-- Especificación: ai-workspace/01-specs/spec.md (v1.1). Ante la duda, manda la spec.
+- Especificación: ai-workspace/01-specs/spec.md (v1.2). Ante la duda, manda la spec.
 - Arquitectura: ai-workspace/02-architecture/architecture.md y adr/.
 - No implementes nada que no esté en la spec. Si algo es ambiguo, PREGUNTA antes de asumir.
 
 ## Stack
 
 **General**
-- Node.js 22 LTS (fijado en `.nvmrc` y `engines`)
+- Node.js 24 LTS (fijado en `.nvmrc` y `engines`)
 - TypeScript con `strict: true` y `noUncheckedIndexedAccess`
 - Monorepo con npm workspaces: `backend/` y `frontend/`
 - ESLint + Prettier (con reglas de importación entre capas y límites de tamaño)
