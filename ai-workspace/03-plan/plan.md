@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.05)
+# SaaS-O-Matic — Plan de implementación (v.06)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -6,6 +6,7 @@
 - v.03 — Node 24 LTS en lugar de 22 (05-review-log.md, fase 4): R-95.
 - v.04 — Decisiones tomadas al implementar T-02: `App.tsx` añadido a sus archivos; dependencias implícitas (@types/react, @types/react-dom, @testing-library/dom); jsdom fijado en 29.x; opcionales de Testing Library no instaladas.
 - v.05 — Decisiones tomadas al implementar T-03: `backend/tsconfig.json` añadido a sus archivos (excluir fixtures y tipos de Node); @types/node instalado; `max-lines-per-function` desactivada en los tests; límites sin contar líneas en blanco ni comentarios.
+- v.06 — Decisiones tomadas al implementar T-04: `package-lock.json` añadido a sus archivos (regenerado con npm 11.21 porque al de npm 11.6 le faltaban dependencias opcionales y `npm ci` fallaba en CI); npm local actualizado a la misma versión que el CI.
 
 ## Contexto
 
@@ -80,7 +81,12 @@ Reglas comunes a todas las tareas:
 - **Objetivo:** ejecutar lint, typecheck y test en cada PR y en cada push a main.
 - **Referencias:** CLAUDE.md (Stack general).
 - **Depende de:** T-03.
-- **Archivos:** `.github/workflows/ci.yml`.
+- **Archivos:** `.github/workflows/ci.yml`. **Añadido en T-04:** `package-lock.json`.
+- **Decisiones de T-04:**
+  - Se ejecuta en todo PR y en cada push a `main`, con un solo job: `npm ci`, `lint`, `typecheck` y `test`. Permisos `contents: read` y `concurrency` para cancelar ejecuciones antiguas de la misma rama.
+  - `actions/checkout@v6` y `actions/setup-node@v6`, fijadas por versión mayor.
+  - El lockfile generado con npm 11.6 no incluía `@emnapi/core` ni `@emnapi/runtime` (opcionales de `@rolldown/binding-wasm32-wasi`, vía Vite). El npm 11.21 que trae la última Node 24 en CI lo detecta y `npm ci` falla. Se regenera con npm 11.21 sin cambiar ninguna versión.
+  - Para evitar que se repita, el lockfile se genera con un npm igual o más reciente que el de CI (npm 11 actualizado en local).
 - **Criterios:** el workflow usa `node-version-file: .nvmrc` y `npm ci`, y un PR de prueba sale en verde.
 - **Tests:** el propio CI.
 - **Fuera de alcance:** better-sqlite3 (se comprueba en T-11, R-89), el script de cobertura de CA (T-36) y cualquier despliegue.
