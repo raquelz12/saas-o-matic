@@ -1,0 +1,23 @@
+{
+  "name": "saas-o-matic",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "backend"
+  ],
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "lint": "eslint . && prettier --check \"**/*.{ts,tsx,js,jsx,css}\"",
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm test --workspaces"
+  },
+  "devDependencies": {
+    "eslint": "10.14.0",
+    "prettier": "3.10.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2",
+    "vitest": "4.1.12"
+  }
+}

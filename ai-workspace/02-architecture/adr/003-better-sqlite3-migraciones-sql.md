@@ -18,4 +18,4 @@ better-sqlite3 con SQL parametrizado, porque escribir el SQL da control total (A
 - La API síncrona permite transacciones síncronas y tests rápidos sobre `:memory:`.
 - El runner es nuestro y hay que mantenerlo: control de versiones aplicadas, orden e idempotencia.
 - El mapeo se repite en cada repositorio, y una columna mal escrita no la detecta el compilador: solo los tests.
-- Es un módulo nativo, así que necesita un binario compatible con Node 22 en cada máquina y en CI.
+- Es un módulo nativo, así que necesita un binario compatible con Node 24 en cada máquina y en CI.

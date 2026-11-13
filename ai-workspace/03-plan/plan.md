@@ -3,6 +3,7 @@
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
 - v.02 — Aplicada la revisión del plan (05-review-log.md, fase 3): R-79 a R-94.
+- v.03 — Node 24 LTS en lugar de 22 (05-review-log.md, fase 4): R-95.
 
 ## Contexto
 
@@ -22,7 +23,7 @@ Reglas comunes a todas las tareas:
 | Tarea | Dependencias | Nota |
 |---|---|---|
 | T-01 | typescript, vitest, eslint, typescript-eslint, prettier | Stack de CLAUDE.md |
-| T-01 | tsx | **Fuera del stack.** Alternativa: type stripping nativo de Node 22 (`node --experimental-strip-types`, o sin flag según la versión fijada en `.nvmrc`). Se decide en T-01 |
+| T-01 | tsx | **Fuera del stack.** Alternativa: type stripping nativo de Node 24 (sin flag). **Decidido en T-01: type stripping nativo; no se instala tsx** |
 | T-02 | react, react-dom, vite, @vitejs/plugin-react, @testing-library/react, jsdom, concurrently | Stack y spec 4.7. jsdom lo necesita Testing Library en Vitest |
 | T-02 | @testing-library/user-event, @testing-library/jest-dom | **Opcionales.** Alternativa: `fireEvent` y las aserciones de Vitest |
 | T-10b | express@5, cors, zod@4, supertest y sus @types | Stack |
@@ -40,7 +41,7 @@ Reglas comunes a todas las tareas:
 - **Referencias:** RNF-01, spec 4.7 (puertos y scripts), ADR-001.
 - **Depende de:** —
 - **Archivos:** `package.json` (workspaces, `engines`, scripts `lint`, `typecheck`, `test`), `.nvmrc`, `tsconfig.base.json` (`strict`, `noUncheckedIndexedAccess`), `.prettierrc`, `eslint.config.js` (base), `.gitignore`, `backend/package.json`, `backend/tsconfig.json`, `backend/vitest.config.ts`, `backend/test/smoke.test.ts`. Son 10 archivos, una excepción aceptada porque casi todos son configuración de pocas líneas (R-84).
-- **Criterios:** `npm ci && npm run lint && npm run typecheck && npm test` pasa desde la raíz con Node 22; `engines.node` es `22.x`; queda decidido cómo se ejecuta TS en dev (`tsx` o type stripping nativo).
+- **Criterios:** `npm ci && npm run lint && npm run typecheck && npm test` pasa desde la raíz con Node 24; `engines.node` es `24.x`; queda decidido cómo se ejecuta TS en dev (`tsx` o type stripping nativo).
 - **Tests:** un smoke test trivial en el backend.
 - **Fuera de alcance:** frontend, reglas de capas, CI y cualquier código de la aplicación.
 
@@ -168,7 +169,7 @@ Reglas comunes a todas las tareas:
   - Ejecutar el runner dos veces no hace nada la segunda.
   - Las migraciones se aplican en orden numérico y se registran como aplicadas.
   - `foreign_keys` vale 1 en cada conexión.
-  - CI en verde con better-sqlite3 instalado en Node 22 (R-89).
+  - CI en verde con better-sqlite3 instalado en Node 24 (R-89, R-95).
 - **Tests:** `backend/test/db/migrate.test.ts` con las migraciones de prueba.
 - **Fuera de alcance:** el esquema real, el seed de tasas y la migración al arrancar (T-12, R-79).
 
@@ -488,7 +489,7 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Fuera de alcance:** el seed de tasas.
 
 ### T-35 · README [1–2 h]
-- **Objetivo:** qué es, requisitos (Node 22), arranque en pocos pasos, scripts, variables de entorno y limitaciones documentadas (spec 1.7).
+- **Objetivo:** qué es, requisitos (Node 24), arranque en pocos pasos, scripts, variables de entorno y limitaciones documentadas (spec 1.7).
 - **Referencias:** RNF-01, RNF-02, spec 4.7.
 - **Depende de:** T-34.
 - **Archivos:** `README.md` y la sección «Comandos» de CLAUDE.md (solo si me lo pides).

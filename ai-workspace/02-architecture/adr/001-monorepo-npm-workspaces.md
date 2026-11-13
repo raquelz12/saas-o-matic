@@ -3,7 +3,7 @@
 Relacionado con: A-01, A-02, A-38 · RNF-01 · Spec 4.7
 
 ## Contexto
-El backend (Node + TypeScript + SQLite) y el frontend (React) viven en el mismo repositorio, y el proyecto tiene que arrancar en pocos pasos. La spec fija Node 22 en `.nvmrc` y `engines` (RNF-01), y pide que `npm run dev` arranque las dos partes a la vez con `concurrently` (4.7).
+El backend (Node + TypeScript + SQLite) y el frontend (React) viven en el mismo repositorio, y el proyecto tiene que arrancar en pocos pasos. La spec fija Node 24 en `.nvmrc` y `engines` (RNF-01), y pide que `npm run dev` arranque las dos partes a la vez con `concurrently` (4.7).
 
 ## Opciones consideradas
 - **Dos proyectos independientes:** aislamiento total y nada que configurar en la raíz / dos `npm install`, scripts duplicados y versiones de herramientas que se desalinean.

@@ -9,7 +9,7 @@ Lo que cambie después queda en el review-log (Fase 2) y en los ADRs.
 |---|---|---|---|---|
 | A-01 | Organización del repo | Dos proyectos independientes · npm workspaces · pnpm/turborepo | npm workspaces | Sencillez |
 | A-02 | Gestor de paquetes | npm · pnpm | npm | Viene con Node |
-| A-03 | Versión de Node | 20 LTS · 22 LTS | 22 LTS | Más actual |
+| A-03 | Versión de Node | 20 LTS · 22 LTS · 24 LTS | 24 LTS | Más actual; es la que está instalada en local (cambiada de 22 a 24 en R-95) |
 | A-04 | TypeScript | `strict: true` · flexible | strict:true | Ya que se va a generar contenido con la IA es más seguro para el código |
 | A-05 | Lint y formato | ESLint + Prettier · Biome | ESLint + Prettier | Con ESLint puedo imponer reglas de capas automáticamente |
 | A-06 | Código compartido front/back | Paquete `shared` (tipos) · sin compartir | Sin compartir | No es necesario y es más complejo |
