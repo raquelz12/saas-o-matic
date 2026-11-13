@@ -1,10 +1,11 @@
-# SaaS-O-Matic — Plan de implementación (v.04)
+# SaaS-O-Matic — Plan de implementación (v.05)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
 - v.02 — Aplicada la revisión del plan (05-review-log.md, fase 3): R-79 a R-94.
 - v.03 — Node 24 LTS en lugar de 22 (05-review-log.md, fase 4): R-95.
 - v.04 — Decisiones tomadas al implementar T-02: `App.tsx` añadido a sus archivos; dependencias implícitas (@types/react, @types/react-dom, @testing-library/dom); jsdom fijado en 29.x; opcionales de Testing Library no instaladas.
+- v.05 — Decisiones tomadas al implementar T-03: `backend/tsconfig.json` añadido a sus archivos (excluir fixtures y tipos de Node); @types/node instalado; `max-lines-per-function` desactivada en los tests; límites sin contar líneas en blanco ni comentarios.
 
 ## Contexto
 
@@ -28,6 +29,7 @@ Reglas comunes a todas las tareas:
 | T-02 | react, react-dom, vite, @vitejs/plugin-react, @testing-library/react, jsdom, concurrently | Stack y spec 4.7. jsdom lo necesita Testing Library en Vitest. **Decidido en T-02: jsdom 29.x**, porque la 30 y la 31 exigen Node ≥ 24.15 y `engines` admite cualquier 24.x |
 | T-02 | @types/react, @types/react-dom, @testing-library/dom | **Añadidas en T-02.** Implícitas: los tipos para el typecheck y @testing-library/dom como dependencia de pares obligatoria de @testing-library/react |
 | T-02 | @testing-library/user-event, @testing-library/jest-dom | **Opcionales. Decidido en T-02: no se instalan**; se usan `fireEvent` y las aserciones de Vitest. Se pueden reconsiderar en M4 |
+| T-03 | @types/node (24.x) en el backend | **Añadida en T-03.** Implícita: el test de lint usa `node:fs`, `node:path` e `import.meta.dirname`, y TypeScript 6 exige declararla en `types`. También la necesitarán T-10a y T-10b |
 | T-10b | express@5, cors, zod@4, supertest y sus @types | Stack |
 | T-11 | better-sqlite3 y @types/better-sqlite3 | Stack |
 | T-24a | react-router, @tanstack/react-query | Stack |
@@ -60,7 +62,12 @@ Reglas comunes a todas las tareas:
 - **Objetivo:** imponer la tabla de capas de architecture §2 con `no-restricted-imports` por glob, y los límites globales de CLAUDE.md.
 - **Referencias:** ADR-007, architecture §2, reglas de código de CLAUDE.md.
 - **Depende de:** T-01, T-02.
-- **Archivos:** `eslint.config.js`, fixtures con imports prohibidos en `backend/test/lint/fixtures/` (excluidos del lint normal) y `backend/test/lint/layers.test.ts`.
+- **Archivos:** `eslint.config.js`, fixtures con imports prohibidos en `backend/test/lint/fixtures/` (excluidos del lint normal) y `backend/test/lint/layers.test.ts`. **Añadido en T-03:** `backend/tsconfig.json`, para excluir los fixtures del typecheck (importan paquetes que aún no están instalados) y declarar `"types": ["node"]`.
+- **Decisiones de T-03:**
+  - `max-lines` y `max-lines-per-function` no cuentan líneas en blanco ni comentarios, porque CLAUDE.md dice «~200» y «~40».
+  - `max-lines-per-function` se desactiva en `*.test.{ts,tsx}`. `max-lines` sigue aplicándose.
+  - Un bloque de ESLint por capa con globs que no se solapan: en flat config, la misma regla en dos bloques se sustituye, no se suma.
+  - El test lintea cada fixture con `lintText` y una ruta virtual dentro de `backend/src` o `frontend/src`.
 - **Criterios:**
   - `domain/` que importa `express` o `zod` falla.
   - Un controller que importa un repository falla.
