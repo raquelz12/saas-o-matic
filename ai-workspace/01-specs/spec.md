@@ -15,6 +15,7 @@
 ## Changelog
 - v0.1 - Versión inicial a partir de mis decisiones (04-prompts/01-spec-inicial.md)
 - v1.0 — Aplicada la revisión propia y la cruzada (05-review-log.md (Fase 1))
+- v1.1 — Aplicada la revisión de arquitectura (05-review-log.md (Fase 2)): R-69, R-70, R-71 y R-76
 
 
 ## 1. Requisitos funcionales
@@ -239,6 +240,8 @@ total_D    = base_D + impuesto_D
 
 El total **no** se convierte directamente, así que puede diferir en una unidad mínima de `total_EUR × r`. Es aceptado por diseño, porque garantiza que base + impuesto = total en pantalla.
 
+El desglose por tramos se convierte del mismo modo: cada `subtotalCents` se convierte y se redondea por separado con la misma fórmula. Por eso la suma de los subtotales convertidos puede diferir de `base_D` en una unidad mínima, lo que se acepta por diseño igual que en el total.
+
 **RB-15 — Ejemplos** (u = 15, ES: base 140,00 €, impuesto 29,40 €; tipos de cambio **hipotéticos**)
 
 | Divisa | Tipo (r) | Base | Impuesto | Total mostrado | Total convertido directo |
@@ -264,7 +267,7 @@ En el caso de JPY se ve la diferencia de una unidad descrita en RB-14.
 2. **Esquema:** JSON válido que no es un objeto (`[]`, `null`, `42`) → 422 con `details: [{ field: "body", issue: "INVALID_TYPE" }]`. Campos desconocidos, ausentes, `null` o con tipo incorrecto → 422.
 3. **Normalización** de los strings (RF-02, RF-03, RF-04).
 4. **Formato y rango** sobre los valores ya normalizados, incluido que el país esté en la tabla de tasas y que el plan sea válido → 422.
-5. **Algoritmo de control** del identificador fiscal. Solo se ejecuta si `country` ya es válido y vale `ES`, y si `taxId` pasó el formato genérico del paso 4 → 422.
+5. **Algoritmo de control** del identificador fiscal. Solo se ejecuta si `country` ya es válido y vale `ES`, y si `taxId` pasó el formato genérico del paso 4 → 422. Depende solo de esos dos campos: se ejecuta aunque otros campos (p. ej. `email`) hayan fallado, y su error se acumula con los demás.
 6. **Reglas de existencia:** cliente inexistente → 404; duplicado → 409.
 
 Los pasos 2 a 5 forman una única fase de validación que acumula todos los errores de campo en un solo 422. Un campo que falla en un paso no se evalúa en los siguientes. Los pasos 1 (415, 413 y 400) y 6 (404 y 409) cortan el procesamiento en el primer fallo.
@@ -322,7 +325,7 @@ Las cadenas numéricas (`"10"`), los decimales (`10.5`) y los negativos se recha
 | `search` | String opcional; vacío = todos; máximo 100 caracteres | 422 `INVALID_LENGTH` |
 | Cualquier otro parámetro de query | No permitido | 422 `UNKNOWN_FIELD` |
 
-**Parseo de la query:** se usa el parser de query `simple`. `page` y `pageSize` deben cumplir `^[1-9][0-9]*$`, así que `1.0`, `+1` y `01` se rechazan con 422. Un parámetro repetido o en forma de array (p. ej. `search[]=`) → 422 `INVALID_TYPE`.
+**Parseo de la query:** se usa el parser de query `simple`. `page` y `pageSize` deben cumplir `^[1-9][0-9]*$`, así que `1.0`, `+1` y `01` se rechazan con 422. Un parámetro repetido (p. ej. `?search=a&search=b`) → 422 `INVALID_TYPE`. Con el parser `simple`, la forma `search[]=` llega como la clave literal `search[]`, así que se trata como un parámetro desconocido → 422 `UNKNOWN_FIELD`.
 
 ### 3.6 Algoritmo del identificador fiscal español (`country = ES`)
 
@@ -559,6 +562,7 @@ Es la fuente de verdad de los países soportados (RF-08) y del catálogo `GET /c
 - **Driver:** `better-sqlite3`, que incluye su propio SQLite (≥ 3.37, necesario para `STRICT`).
 - **Puertos:** backend 3000, frontend 5173.
 - **Arranque:** el repositorio usa npm workspaces, y `npm run dev` arranca backend y frontend a la vez con `concurrently`.
+- **Al arrancar el servidor:** el backend aplica las migraciones pendientes y el seed de `tax_rates` (el mismo `INSERT OR IGNORE`), de modo que la aplicación funciona sin pasos manuales. Los comandos `db:migrate` y `db:seed` se mantienen para ejecutarlos de forma explícita.
 
 ---
 
@@ -968,6 +972,7 @@ Ninguno.
 | CA-66 | ES | `b-1234 5674`, con `B12345674` ya existente en ES | 409 `DUPLICATE` |
 | CA-67 | FR | `B12345674`, con `B12345674` ya existente en ES | 201 (país distinto) |
 | CA-68 | ES | `A87654323`, con el mismo email que otro cliente | 201 (el email no es único) |
+| CA-110 | ES | `B1234567D`, con `email` = `"no-es-un-email"` | 422 con los dos errores: `taxId` `INVALID_CHECKSUM` y `email` `INVALID_FORMAT` |
 
 ### 6.7 Búsqueda, detalle y paginación (RF-11 a RF-17, RF-27, RF-28)
 
@@ -989,6 +994,7 @@ Ninguno.
 | CA-82 | — | `GET /countries` | 7 países ordenados por `code`, con su `taxRateBp` |
 | CA-106 | Ningún cliente contiene `%` | `?search=%` | 200, `items: []` (el `%` se busca literalmente) |
 | CA-107 | Ningún cliente contiene `_` | `?search=_` | 200, `items: []` (el `_` se busca literalmente) |
+| CA-109 | — | `?search=a&search=b` y `?search[]=x` | 422 en ambos: `search` `INVALID_TYPE` en el primero y `search[]` `UNKNOWN_FIELD` en el segundo |
 
 ### 6.8 Errores transversales (RF-30, RF-31, sección 5.1)
 
