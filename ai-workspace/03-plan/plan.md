@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.08)
+# SaaS-O-Matic — Plan de implementación (v.09)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -9,6 +9,7 @@
 - v.06 — Decisiones tomadas al implementar T-04 (05-review-log.md, R-98): `package-lock.json` añadido a sus archivos (regenerado con npm 11.21 porque al de npm 11.6 le faltaban dependencias opcionales y `npm ci` fallaba en CI); npm local actualizado a la misma versión que el CI.
 - v.07 — Decisiones tomadas al implementar T-05 (05-review-log.md, R-99): función `calculateBase(users)` con tipos `Tier` y `BaseBreakdown`; tramos como constante interna; CA-12 contrastado además con la fórmula de RB-01; fallo local de Vitest con rutas `/c/` de Git Bash documentado.
 - v.08 — Decisiones tomadas al implementar T-06 (05-review-log.md, R-100): `calculateQuote` en `quote.ts` propio con su `quote.test.ts`; tipo `Quote` sin `taxRateBp`; filas de RB-07 en el test de `money` nombradas `RB-07: …`.
+- v.09 — Decisiones tomadas al implementar T-07 (05-review-log.md, R-101): tipo `TaxIdResult`; tabla de letras e iniciales como constantes internas; iniciales de CIF dan `INVALID_FORMAT` hasta T-08; filas de 3.6.7 y 3.6.8 sin CA nombradas `3.6.7: …` y `3.6.8: …`.
 
 ## Contexto
 
@@ -137,6 +138,13 @@ Reglas comunes a todas las tareas:
 - **Archivos:** `backend/src/modules/customers/domain/taxId.ts` y `taxId.test.ts`.
 - **Criterios:** filas de la tabla 3.6.7 de DNI, NIE y K/L/M; CA-50, CA-52, CA-53, CA-54, CA-60, CA-61 y CA-62 (longitud ≠ 9) a nivel de unidad; `00000000T` y `X0000000T` válidos; `12345678U` y `123456789` dan `INVALID_FORMAT`. CA-51 no está aquí: es un caso de normalización y va en T-09 (R-87).
 - **Tests:** tabla parametrizada con los casos de 3.6.7 que aplican.
+- **Decisiones de T-07 (R-101):**
+  - API: `validateSpanishTaxId(normalized): TaxIdResult`, con `TaxIdResult = 'OK' | 'INVALID_FORMAT' | 'INVALID_CHECKSUM'`. Nunca lanza.
+  - La tabla de 23 letras (3.6.2) y los conjuntos de iniciales (`XYZ`, `KLM`) son constantes internas, sin exportar.
+  - Detección por posiciones: longitud 9, primer carácter, posiciones centrales dígito a dígito y control. Un control fuera de la tabla de 23 letras da `INVALID_FORMAT`; uno de la tabla que no coincide, `INVALID_CHECKSUM`.
+  - Hasta T-08, las iniciales de CIF dan `INVALID_FORMAT` como cualquier otra letra, sin test que fije ese comportamiento provisional.
+  - No valida la entrada: el valor llega ya normalizado (T-09).
+  - Las filas de 3.6.7 y 3.6.8 sin CA se nombran `3.6.7: …` y `3.6.8: …`; los casos límite añadidos (posición central no numérica en cada tipo, `L` y `M`, control fuera de tabla en NIF especial, iniciales `T` y `O`, 10 caracteres) son descriptivos y sin CA.
 - **Fuera de alcance:** CIF (T-08) y normalización (T-09).
 
 ### T-08 · Identificador fiscal español: CIF [2 h]
