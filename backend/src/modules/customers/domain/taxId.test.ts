@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateSpanishTaxId } from './taxId.ts';
+import { normalizeTaxId, validateGenericTaxId, validateSpanishTaxId } from './taxId.ts';
 
 describe('validateSpanishTaxId: DNI', () => {
   it('CA-50: 12345678Z → OK (12345678 mod 23 = 14 → Z)', () => {
@@ -161,5 +161,53 @@ describe('validateSpanishTaxId: detección del tipo', () => {
 
   it('10 caracteres (123456789Z) → INVALID_FORMAT', () => {
     expect(validateSpanishTaxId('123456789Z')).toBe('INVALID_FORMAT');
+  });
+});
+
+describe('normalizeTaxId (RF-04, también para la búsqueda de RF-13)', () => {
+  it('CA-51: 12.345.678-z → 12345678Z, válido como DNI', () => {
+    const normalized = normalizeTaxId('12.345.678-z');
+    expect(normalized).toBe('12345678Z');
+    expect(validateSpanishTaxId(normalized)).toBe('OK');
+  });
+
+  it.each([
+    ['b-1234 5674', 'B12345674'],
+    ['B\u00A01234\u2009567\t4', 'B12345674'],
+    ['esb12345674', 'ESB12345674'],
+    ['-', ''],
+    ['.', ''],
+  ])('%j → %j', (raw, expected) => {
+    expect(normalizeTaxId(raw)).toBe(expected);
+  });
+
+  it('pasa a mayúsculas antes de comprobar (ß → SS, RF-04 literal)', () => {
+    expect(normalizeTaxId('straße1')).toBe('STRASSE1');
+  });
+});
+
+describe('validateGenericTaxId', () => {
+  it('CA-64: 1234 → INVALID_LENGTH', () => {
+    expect(validateGenericTaxId(normalizeTaxId('1234'))).toBe('INVALID_LENGTH');
+  });
+
+  it('CA-65: AB_123 → INVALID_FORMAT (tras normalizar no es alfanumérico)', () => {
+    expect(validateGenericTaxId(normalizeTaxId('AB_123'))).toBe('INVALID_FORMAT');
+  });
+
+  it.each(['FR12345678901', 'AB123', 'A'.repeat(20)])('%s → OK', (taxId) => {
+    expect(validateGenericTaxId(taxId)).toBe('OK');
+  });
+
+  it('21 caracteres → INVALID_LENGTH', () => {
+    expect(validateGenericTaxId('A'.repeat(21))).toBe('INVALID_LENGTH');
+  });
+
+  it.each(['Ñ1234', 'AB12é', '١٢٣٤٥'])('%s (fuera de A–Z y 0–9) → INVALID_FORMAT', (taxId) => {
+    expect(validateGenericTaxId(taxId)).toBe('INVALID_FORMAT');
+  });
+
+  it('si fallan longitud y formato, gana la longitud: AB_ → INVALID_LENGTH', () => {
+    expect(validateGenericTaxId('AB_')).toBe('INVALID_LENGTH');
   });
 });

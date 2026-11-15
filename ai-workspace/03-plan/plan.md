@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.10)
+# SaaS-O-Matic — Plan de implementación (v.11)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -11,6 +11,7 @@
 - v.08 — Decisiones tomadas al implementar T-06 (05-review-log.md, R-100): `calculateQuote` en `quote.ts` propio con su `quote.test.ts`; tipo `Quote` sin `taxRateBp`; filas de RB-07 en el test de `money` nombradas `RB-07: …`.
 - v.09 — Decisiones tomadas al implementar T-07 (05-review-log.md, R-101): tipo `TaxIdResult`; tabla de letras e iniciales como constantes internas; iniciales de CIF dan `INVALID_FORMAT` hasta T-08; filas de 3.6.7 y 3.6.8 sin CA nombradas `3.6.7: …` y `3.6.8: …`.
 - v.10 — Decisiones tomadas al implementar T-08 (05-review-log.md, R-102): CIF en `taxId.ts`, sin `cif.ts`; orden formato → forma exigida → valor; las 17 iniciales probadas; filas sin CA nombradas `3.6.7: …` y `3.6.8: …`.
+- v.11 — Decisiones tomadas al implementar T-09 (05-review-log.md, R-103): API de cada normalizador y validador; si fallan longitud y formato, gana la longitud; se normaliza antes de validar (un tabulador se colapsa); U+FEFF se trata como espacio; marcas combinantes con `\p{M}`; `toUpperCase` antes de comprobar el identificador.
 
 ## Contexto
 
@@ -175,6 +176,21 @@ Reglas comunes a todas las tareas:
   - Limitación conocida: `Łódź` no se descompone (spec 1.7).
   - CA-39, CA-40, CA-41, CA-43, CA-45, CA-51, CA-64, CA-65, CA-69 y CA-70 a nivel de unidad.
 - **Tests:** casos por función, incluidos NBSP, U+200B, U+202E y emoji con ZWJ.
+- **Decisiones de T-09 (R-103):**
+  - API (en cada caso, `raw` es el valor recibido y `normalized` el que devuelve su normalizador):
+    - `normalizeCompanyName(raw)` y `validateCompanyName(normalized): CompanyNameResult` (`'OK' | 'INVALID_LENGTH' | 'INVALID_FORMAT'`).
+    - `searchKey(raw)`.
+    - `normalizeTaxId(raw)` y `validateGenericTaxId(normalized): GenericTaxIdResult` (`'OK' | 'INVALID_LENGTH' | 'INVALID_FORMAT'`), en `taxId.ts`.
+    - `normalizeEmail(raw)` y `validateEmailLength(normalized): EmailLengthResult` (`'OK' | 'INVALID_LENGTH'`).
+    - Ninguna lanza excepciones.
+  - **Si fallan longitud y formato, gana la longitud** (`"\u0007"` → `INVALID_LENGTH`; `AB_` → `INVALID_LENGTH`). Sigue el orden de la tabla 3.3 y el del email (254 antes de `z.email()`).
+  - Se normaliza antes de validar (3.1): un tabulador o un salto de línea son `\s` y se colapsan, así que no dan `INVALID_FORMAT`. U+0085, que es `Cc` y no es `\s` en JS, sí lo da.
+  - `\s` es el de JS con el flag `u`. Incluye U+FEFF, que se trata como espacio aunque sea `Cf`. U+200B no es `\s` y da `INVALID_FORMAT`.
+  - El emoji con ZWJ da `INVALID_FORMAT` (U+200D es `Cf`), como asume RF-02.
+  - `searchKey` usa `normalizeCompanyName`, `toLowerCase`, NFD y quita las marcas combinantes con `\p{M}`. No valida, y la usan tanto la columna `company_name_search` como el texto buscado.
+  - `normalizeTaxId` hace `toUpperCase` antes de comprobar el formato (RF-04 al pie de la letra): `ß` pasa a `SS` y queda como alfanumérico. La regla `A–Z0–9` es ASCII.
+  - Longitudes en code points (`[...s].length`). Los CA de 6.5 y 6.6 sin columna de unidad (CA-42, CA-63) no se prueban aquí (R-87).
+  - `taxId.ts` queda en 114 líneas. `taxId.test.ts` tiene 213 líneas en total, pero cumple `max-lines` porque no cuenta las líneas en blanco (R-97).
 - **Fuera de alcance:** zod, el escapado de LIKE (va en el repositorio, T-20) y country y plan (trim y mayúsculas triviales, en el schema).
 
 ---

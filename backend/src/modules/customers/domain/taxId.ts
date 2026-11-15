@@ -1,4 +1,10 @@
 export type TaxIdResult = 'OK' | 'INVALID_FORMAT' | 'INVALID_CHECKSUM';
+export type GenericTaxIdResult = 'OK' | 'INVALID_LENGTH' | 'INVALID_FORMAT';
+
+const GENERIC_MIN_LENGTH = 5;
+const GENERIC_MAX_LENGTH = 20;
+const REMOVABLE_CHARS = /[\s.-]/gu;
+const ALPHANUMERIC = /^[A-Z0-9]*$/;
 
 const SPANISH_TAX_ID_LENGTH = 9;
 const CONTROL_LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
@@ -8,6 +14,23 @@ const CIF_CONTROL_LETTERS = 'JABCDEFGHI';
 const CIF_LETTER_ONLY = 'PQRSNW';
 const CIF_DIGIT_ONLY = 'ABEH';
 const CIF_DIGIT_OR_LETTER = 'CDFGJUV';
+
+/** RF-04: quita los `\s` Unicode, `-` y `.`, y pasa a mayúsculas. También lo usa la búsqueda (RF-13). */
+export function normalizeTaxId(raw: string): string {
+  return raw.replace(REMOVABLE_CHARS, '').toUpperCase();
+}
+
+/**
+ * RF-04 y RF-06 sobre el valor ya normalizado: solo `A–Z` y `0–9`, de 5 a 20 code points.
+ * Si fallan las dos reglas, gana la longitud.
+ */
+export function validateGenericTaxId(normalized: string): GenericTaxIdResult {
+  const length = [...normalized].length;
+  if (length < GENERIC_MIN_LENGTH || length > GENERIC_MAX_LENGTH) {
+    return 'INVALID_LENGTH';
+  }
+  return ALPHANUMERIC.test(normalized) ? 'OK' : 'INVALID_FORMAT';
+}
 
 function isDigit(char: string): boolean {
   return char >= '0' && char <= '9';
