@@ -1,13 +1,14 @@
-# SaaS-O-Matic — Plan de implementación (v.07)
+# SaaS-O-Matic — Plan de implementación (v.08)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
 - v.02 — Aplicada la revisión del plan (05-review-log.md, fase 3): R-79 a R-94.
 - v.03 — Node 24 LTS en lugar de 22 (05-review-log.md, fase 4): R-95.
-- v.04 — Decisiones tomadas al implementar T-02: `App.tsx` añadido a sus archivos; dependencias implícitas (@types/react, @types/react-dom, @testing-library/dom); jsdom fijado en 29.x; opcionales de Testing Library no instaladas.
-- v.05 — Decisiones tomadas al implementar T-03: `backend/tsconfig.json` añadido a sus archivos (excluir fixtures y tipos de Node); @types/node instalado; `max-lines-per-function` desactivada en los tests; límites sin contar líneas en blanco ni comentarios.
-- v.06 — Decisiones tomadas al implementar T-04: `package-lock.json` añadido a sus archivos (regenerado con npm 11.21 porque al de npm 11.6 le faltaban dependencias opcionales y `npm ci` fallaba en CI); npm local actualizado a la misma versión que el CI.
-- v.07 — Decisiones tomadas al implementar T-05: función `calculateBase(users)` con tipos `Tier` y `BaseBreakdown`; tramos como constante interna; CA-12 contrastado además con la fórmula de RB-01; fallo local de Vitest con rutas `/c/` de Git Bash documentado.
+- v.04 — Decisiones tomadas al implementar T-02 (05-review-log.md, R-96): `App.tsx` añadido a sus archivos; dependencias implícitas (@types/react, @types/react-dom, @testing-library/dom); jsdom fijado en 29.x; opcionales de Testing Library no instaladas.
+- v.05 — Decisiones tomadas al implementar T-03 (05-review-log.md, R-97): `backend/tsconfig.json` añadido a sus archivos (excluir fixtures y tipos de Node); @types/node instalado; `max-lines-per-function` desactivada en los tests; límites sin contar líneas en blanco ni comentarios.
+- v.06 — Decisiones tomadas al implementar T-04 (05-review-log.md, R-98): `package-lock.json` añadido a sus archivos (regenerado con npm 11.21 porque al de npm 11.6 le faltaban dependencias opcionales y `npm ci` fallaba en CI); npm local actualizado a la misma versión que el CI.
+- v.07 — Decisiones tomadas al implementar T-05 (05-review-log.md, R-99): función `calculateBase(users)` con tipos `Tier` y `BaseBreakdown`; tramos como constante interna; CA-12 contrastado además con la fórmula de RB-01; fallo local de Vitest con rutas `/c/` de Git Bash documentado.
+- v.08 — Decisiones tomadas al implementar T-06 (05-review-log.md, R-100): `calculateQuote` en `quote.ts` propio con su `quote.test.ts`; tipo `Quote` sin `taxRateBp`; filas de RB-07 en el test de `money` nombradas `RB-07: …`.
 
 ## Contexto
 
@@ -117,9 +118,16 @@ Reglas comunes a todas las tareas:
 - **Objetivo:** `taxCents(base, rateBp)` en aritmética entera y `calculateQuote(users, rateBp)`, que devuelve base, impuesto, total y tramos.
 - **Referencias:** RF-22, RB-05, RB-07, RB-08, ADR-006.
 - **Depende de:** T-05.
-- **Archivos:** `backend/src/modules/simulations/domain/money.ts` y `money.test.ts`, y `calculateQuote` (en `pricing.ts` o en un `quote.ts` propio, dentro del límite de tamaño).
+- **Archivos:** `backend/src/modules/simulations/domain/money.ts` y `money.test.ts`, y `calculateQuote` (en `pricing.ts` o en un `quote.ts` propio, dentro del límite de tamaño). **Decidido en T-06:** `quote.ts` y `quote.test.ts`.
 - **Criterios:** los valores de CA-13 a CA-17 y CA-18 (2105 bp → 211) a nivel de unidad; `total = base + impuesto` siempre.
 - **Tests:** la tabla RB-07, el caso RB-08 y casos límite de half-up (x,5 sube; x,4999 baja).
+- **Decisiones de T-06 (R-100):**
+  - `taxCents(baseCents, rateBp)` en `money.ts` con `floor((base × bp + 5000) / 10000)` (ADR-006). No depende de los tramos.
+  - `calculateQuote(users, rateBp): Quote` en `quote.ts`, que combina `calculateBase` y `taxCents`. Así `pricing.ts` queda solo con los tramos.
+  - `Quote = { baseCents, taxCents, totalCents, tiers }`, sin `taxRateBp`: la tasa la lee el service (RB-06) y ya la tiene para el snapshot.
+  - Las filas de RB-07 se prueban en `money.test.ts` como `RB-07: …`; los CA-13 a CA-18 van en `quote.test.ts`.
+  - La propiedad `total = base + impuesto` se comprueba para todo `u` de 1 a 1000 y seis tasas, contra un half-up escrito aparte en el test (cociente y resto) para que no se cumpla por construcción.
+  - No valida la entrada: los rangos los garantizan el schema y el `CHECK (tax_rate_bp BETWEEN 0 AND 10000)`.
 - **Fuera de alcance:** lectura de tasas y transacciones.
 
 ### T-07 · Identificador fiscal español: detección, DNI, NIE y NIF especial [3 h]
