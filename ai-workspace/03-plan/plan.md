@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.09)
+# SaaS-O-Matic — Plan de implementación (v.10)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -10,6 +10,7 @@
 - v.07 — Decisiones tomadas al implementar T-05 (05-review-log.md, R-99): función `calculateBase(users)` con tipos `Tier` y `BaseBreakdown`; tramos como constante interna; CA-12 contrastado además con la fórmula de RB-01; fallo local de Vitest con rutas `/c/` de Git Bash documentado.
 - v.08 — Decisiones tomadas al implementar T-06 (05-review-log.md, R-100): `calculateQuote` en `quote.ts` propio con su `quote.test.ts`; tipo `Quote` sin `taxRateBp`; filas de RB-07 en el test de `money` nombradas `RB-07: …`.
 - v.09 — Decisiones tomadas al implementar T-07 (05-review-log.md, R-101): tipo `TaxIdResult`; tabla de letras e iniciales como constantes internas; iniciales de CIF dan `INVALID_FORMAT` hasta T-08; filas de 3.6.7 y 3.6.8 sin CA nombradas `3.6.7: …` y `3.6.8: …`.
+- v.10 — Decisiones tomadas al implementar T-08 (05-review-log.md, R-102): CIF en `taxId.ts`, sin `cif.ts`; orden formato → forma exigida → valor; las 17 iniciales probadas; filas sin CA nombradas `3.6.7: …` y `3.6.8: …`.
 
 ## Contexto
 
@@ -151,9 +152,16 @@ Reglas comunes a todas las tareas:
 - **Objetivo:** añadir el algoritmo del CIF y la forma de control que exige cada letra inicial.
 - **Referencias:** RF-05, spec 3.6.6.
 - **Depende de:** T-07.
-- **Archivos:** `taxId.ts` (o `cif.ts` si se supera el límite de tamaño) y sus tests.
+- **Archivos:** `taxId.ts` (o `cif.ts` si se supera el límite de tamaño) y sus tests. **Decidido en T-08:** `taxId.ts` y `taxId.test.ts`, sin `cif.ts`.
 - **Criterios:** CA-55 a CA-59 a nivel de unidad; `B1234567K` da `INVALID_FORMAT`; `A87654323` es válido.
 - **Tests:** las filas CIF de 3.6.7 y un caso de cada grupo de letras (solo letra, solo dígito, ambos).
+- **Decisiones de T-08 (R-102):**
+  - El CIF va en `taxId.ts`, que queda en 91 líneas. Si T-09 lo acerca al límite de 200, se separará entonces.
+  - `checkCif(initial, digits, control)` y `cifControlValue(digits)` (pasos 1–4 de 3.6.6) son funciones internas. `JABCDEFGHI` y los tres grupos de iniciales (`PQRSNW`, `ABEH`, `CDFGJUV`) son constantes internas, sin exportar.
+  - Orden de comprobación: posiciones centrales no numéricas o control fuera de `0–9` y `JABCDEFGHI` → `INVALID_FORMAT`; control con una forma que la inicial no admite → `INVALID_CHECKSUM`; control distinto de D → `INVALID_CHECKSUM`.
+  - En lugar de un caso por grupo, se prueban las 17 iniciales, cada una con la forma admitida y la no admitida (con `1234567`, D = 4). Se añade además D = 0 → `J` (`P0000000J`).
+  - Las filas `A87654323` y `B1234567K` se nombran `3.6.7: …`, y la provincia `00` (`B00000000`), `3.6.8: …`. El resto de casos límite (control que no coincide como dígito y como letra, posición central no numérica) son descriptivos y sin CA.
+  - Desaparece el comportamiento provisional de T-07: las iniciales de CIF ya no dan `INVALID_FORMAT` por defecto.
 - **Fuera de alcance:** el cruce con `country` (es del schema, T-17).
 
 ### T-09 · Normalizadores y clave de búsqueda [3 h]
