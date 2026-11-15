@@ -79,6 +79,73 @@ describe('validateSpanishTaxId: NIF especial (K, L, M)', () => {
   });
 });
 
+describe('validateSpanishTaxId: CIF', () => {
+  it('CA-55: B12345674 → OK (A = 12, B = 14, C = 26, D = 4; B exige dígito)', () => {
+    expect(validateSpanishTaxId('B12345674')).toBe('OK');
+  });
+
+  it('CA-56: B1234567D → INVALID_CHECKSUM (B exige dígito)', () => {
+    expect(validateSpanishTaxId('B1234567D')).toBe('INVALID_CHECKSUM');
+  });
+
+  it('CA-57: P1234567D → OK (D = 4 → letra D; P exige letra)', () => {
+    expect(validateSpanishTaxId('P1234567D')).toBe('OK');
+  });
+
+  it('CA-58: P12345674 → INVALID_CHECKSUM (P exige letra)', () => {
+    expect(validateSpanishTaxId('P12345674')).toBe('INVALID_CHECKSUM');
+  });
+
+  it.each(['C12345674', 'C1234567D'])('CA-59: %s → OK (C admite dígito o letra)', (taxId) => {
+    expect(validateSpanishTaxId(taxId)).toBe('OK');
+  });
+
+  it('3.6.7: A87654323 → OK (A = 15, B = 22, C = 37, D = 3)', () => {
+    expect(validateSpanishTaxId('A87654323')).toBe('OK');
+  });
+
+  it('3.6.7: B1234567K (K no está en 0–9 ni en JABCDEFGHI) → INVALID_FORMAT', () => {
+    expect(validateSpanishTaxId('B1234567K')).toBe('INVALID_FORMAT');
+  });
+
+  it('3.6.8: B00000000 → OK (provincia 00 sin restricción especial; D = 0)', () => {
+    expect(validateSpanishTaxId('B00000000')).toBe('OK');
+  });
+
+  it('D = 0 se corresponde con la letra J (P0000000J) → OK', () => {
+    expect(validateSpanishTaxId('P0000000J')).toBe('OK');
+  });
+
+  it('dígito de control que no coincide (B12345675) → INVALID_CHECKSUM', () => {
+    expect(validateSpanishTaxId('B12345675')).toBe('INVALID_CHECKSUM');
+  });
+
+  it('letra de control que no coincide (P1234567A) → INVALID_CHECKSUM', () => {
+    expect(validateSpanishTaxId('P1234567A')).toBe('INVALID_CHECKSUM');
+  });
+
+  it('posición central que no es dígito (B12A45674) → INVALID_FORMAT', () => {
+    expect(validateSpanishTaxId('B12A45674')).toBe('INVALID_FORMAT');
+  });
+});
+
+describe('validateSpanishTaxId: CIF, forma del control por letra inicial (3.6.6)', () => {
+  it.each([...'PQRSNW'])('%s (solo letra): letra → OK, dígito → INVALID_CHECKSUM', (initial) => {
+    expect(validateSpanishTaxId(`${initial}1234567D`)).toBe('OK');
+    expect(validateSpanishTaxId(`${initial}12345674`)).toBe('INVALID_CHECKSUM');
+  });
+
+  it.each([...'ABEH'])('%s (solo dígito): dígito → OK, letra → INVALID_CHECKSUM', (initial) => {
+    expect(validateSpanishTaxId(`${initial}12345674`)).toBe('OK');
+    expect(validateSpanishTaxId(`${initial}1234567D`)).toBe('INVALID_CHECKSUM');
+  });
+
+  it.each([...'CDFGJUV'])('%s (dígito o letra): ambos → OK', (initial) => {
+    expect(validateSpanishTaxId(`${initial}12345674`)).toBe('OK');
+    expect(validateSpanishTaxId(`${initial}1234567D`)).toBe('OK');
+  });
+});
+
 describe('validateSpanishTaxId: detección del tipo', () => {
   it('CA-61: I1234567A (letra inicial no válida) → INVALID_FORMAT', () => {
     expect(validateSpanishTaxId('I1234567A')).toBe('INVALID_FORMAT');
