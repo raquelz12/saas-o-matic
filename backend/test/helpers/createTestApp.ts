@@ -1,7 +1,8 @@
 import type { Express } from 'express';
 import { createApp, type AppDeps } from '../../src/app.ts';
 import { loadConfig } from '../../src/config/env.ts';
-import { openDatabase, type Db } from '../../src/db/connection.ts';
+import type { Db } from '../../src/db/connection.ts';
+import { prepareDatabase } from '../../src/db/prepareDatabase.ts';
 import type { Logger } from '../../src/shared/logger.ts';
 
 /** Logger que no escribe nada, para no ensuciar la salida de los tests. */
@@ -20,10 +21,10 @@ export function createTestApp(overrides: Partial<AppDeps> = {}): Express {
 }
 
 /**
- * BD de prueba en `:memory:` con `foreign_keys` activado, aislada en cada llamada.
- * Por ahora va aparte de la app: `createApp` aún no recibe `db` (llegará con los
- * repositorios), y las migraciones y el seed de tasas se añaden en T-12.
+ * BD de prueba en `:memory:`, aislada en cada llamada, con `foreign_keys` activado,
+ * las migraciones aplicadas y el seed de tasas (nunca el seed demo; architecture §6).
+ * Va aparte de la app: `createApp` aún no recibe `db` (llegará con los repositorios).
  */
 export function createTestDb(): Db {
-  return openDatabase(':memory:');
+  return prepareDatabase(':memory:');
 }

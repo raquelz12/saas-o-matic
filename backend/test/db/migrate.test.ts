@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { openDatabase, type Db } from '../../src/db/connection.ts';
 import { runMigrations } from '../../src/db/migrate.ts';
-import { createTestDb } from '../helpers/createTestApp.ts';
 
 const FIXTURES = join(import.meta.dirname, 'fixtures');
 const ORDERED = join(FIXTURES, 'ordered');
@@ -13,7 +12,8 @@ const openDbs: Db[] = [];
 const tempDirs: string[] = [];
 
 function testDb(): Db {
-  const db = createTestDb();
+  // BD vacía, sin el esquema real: createTestDb() ya aplica 001_init.sql (T-12).
+  const db = openDatabase(':memory:');
   openDbs.push(db);
   return db;
 }

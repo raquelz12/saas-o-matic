@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.13)
+# SaaS-O-Matic — Plan de implementación (v.14)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -14,6 +14,7 @@
 - v.11 — Decisiones tomadas al implementar T-09 (05-review-log.md, R-103): API de cada normalizador y validador; si fallan longitud y formato, gana la longitud; se normaliza antes de validar (un tabulador se colapsa); U+FEFF se trata como espacio; marcas combinantes con `\p{M}`; `toUpperCase` antes de comprobar el identificador.
 - v.12 — Decisiones tomadas al implementar T-10a y T-10b (05-review-log.md, R-104): versiones exactas de las dependencias (supertest 7.3.1, no 7.3.2); `backend/package.json` (script `dev` con `--env-file-if-exists`) y `package-lock.json` añadidos a sus archivos; test unitario del `errorHandler` en `backend/src/http/errorHandler.test.ts`; `DB_PATH` por defecto `./data/saas-o-matic.db`; mensajes `Resource not found` e `Internal server error`; CORS con `origin` como array.
 - v.13 — Decisiones tomadas al implementar T-11 (05-review-log.md, R-105): better-sqlite3 13.0.3 y @types/better-sqlite3 9.6.0; `createTestDb()` aparte de `createTestApp()`; tabla `schema_migrations`; orden numérico y número duplicado como error; una transacción por migración; `db:migrate` falla si no existe `backend/migrations/`; script `db:migrate` también en el `package.json` raíz.
+- v.14 — Decisiones tomadas al implementar T-12 (05-review-log.md, R-106): `prepareDatabase()` para el arranque y `createTestDb()`; `seedTaxRates` con `INSERT OR IGNORE`; `db:seed` no migra; `migrate.test.ts` con BD vacía; tests de esquema en dos archivos y un módulo de filas; script `db:seed` también en la raíz.
 
 ## Contexto
 
@@ -266,7 +267,7 @@ Reglas comunes a todas las tareas:
 - **Objetivo:** crear las tablas `STRICT`, los `CHECK`, `UNIQUE`, índices y triggers de inmutabilidad de la spec; añadir el seed `INSERT OR IGNORE` de `tax_rates` con `db:seed`, y hacer que el servidor migre y siembre las tasas al arrancar.
 - **Referencias:** RF-10, RF-25, RF-32, RF-33, spec 4.3–4.5 y 4.7, R-71.
 - **Depende de:** T-11.
-- **Archivos:** `backend/migrations/001_init.sql`, `backend/src/db/seedTaxRates.ts`, `server.ts`, el script `db:seed`, `createTestDb` (migrar y sembrar; R-105), `backend/test/db/schema.test.ts` y `backend/test/db/seed.test.ts`.
+- **Archivos:** `backend/migrations/001_init.sql`, `backend/src/db/seedTaxRates.ts`, `server.ts`, el script `db:seed`, `createTestDb` (migrar y sembrar; R-105), `backend/test/db/schema.test.ts` y `backend/test/db/seed.test.ts`. **Añadidos en T-12 (R-106):** `backend/src/db/prepareDatabase.ts`, `backend/test/db/schema.customers.test.ts`, `backend/test/db/schemaRows.ts`, `backend/test/db/migrate.test.ts` (BD vacía), `backend/package.json` y `package.json` raíz (script `db:seed`).
 - **Criterios:**
   - CA-26: `UPDATE` o `DELETE` sobre `simulations` aborta.
   - CA-27: el `CHECK` de `total_cents` rechaza el `INSERT`.
@@ -275,6 +276,14 @@ Reglas comunes a todas las tareas:
   - Arrancar sobre una BD vacía deja migraciones y tasas aplicadas sin pasos manuales (R-71; no tiene CA).
 - **Tests:** better-sqlite3 directo, sin pasar por la API.
 - **Fuera de alcance:** repositorios y seed demo.
+- **Decisiones de T-12 (R-106):**
+  - `001_init.sql` copia la spec 4.3–4.5 al pie de la letra, sin restricciones extra (por ejemplo, no comprueba que `tiers_json` sea un array). Nombres: `customers_search_idx`, `simulations_history_idx`, `customers_no_update`, `customers_no_delete`, `simulations_no_update` y `simulations_no_delete`. Sin `BEGIN` ni `COMMIT` (R-105).
+  - `seedTaxRates(db): number` inserta las 7 tasas con `INSERT OR IGNORE` en una transacción y devuelve las filas insertadas. Una tasa borrada a mano se repone; una editada, no.
+  - `npm run db:seed` (backend y raíz) no migra: sobre una BD sin migrar falla con `no such table: tax_rates`, porque la spec 4.7 separa los dos comandos.
+  - `prepareDatabase(path): Db` abre, migra y siembra, y cierra la conexión si algo falla. Lo usan `server.ts`, que termina antes de `listen` si la migración falla, y `createTestDb()`. Su test en `seed.test.ts` cubre R-71 sobre un archivo nuevo en una carpeta temporal.
+  - La conexión de `server.ts` sigue abierta, pero aún no se pasa a `createApp`: llegará con los repositorios.
+  - `migrate.test.ts` abre `openDatabase(':memory:')`, porque `createTestDb()` ya trae `001_init.sql`.
+  - Los tests de esquema se reparten entre `schema.test.ts` (simulations y propiedades generales), `schema.customers.test.ts` (customers y tax_rates) y `schemaRows.ts` (filas válidas, inserciones y `useTestDb()`), para respetar las 200 líneas por archivo.
 
 ### T-13 · Pipeline de recepción HTTP: 415, 413, 400 y 405 [3 h]
 - **Objetivo:** middlewares transversales de Content-Type, `express.json` (10 kB, `strict: false`) con detección de body vacío, mapeo de los errores de body-parser y helper `.all()` para el 405.
