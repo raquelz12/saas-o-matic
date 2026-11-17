@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.23)
+# SaaS-O-Matic — Plan de implementación (v.24)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -24,6 +24,7 @@
 - v.21 — Decisiones tomadas al implementar T-19 (05-review-log.md, R-113): `findById` devuelve `undefined` y el `NotFoundError` lo lanza el service; 404 con el mensaje genérico `Resource not found`; `/:id` valida `params` y `query` y da 405 al resto de métodos, incluido `POST`.
 - v.22 — Decisiones tomadas al implementar T-20 (05-review-log.md, R-114): `search` medido en code points tras el trim; claves de RB-13 calculadas en el service y rama de identificador omitida si normaliza a vacío; escapado de LIKE y `@taxId` nulo en el repositorio; `total` con `COUNT(*)` aparte.
 - v.23 — Decisiones tomadas al implementar T-21 (05-review-log.md, R-115): tasa inexistente → 500; `runInTransaction` inyectado desde `app.ts`; `quote` interna reutilizable por T-22; máximo de `customerId` como constante local; tests en dos archivos con el helper `simulationFactory.ts` (añadidos a sus archivos); CA-12 con un único servidor y `fetch`.
+- v.24 — Decisiones tomadas al implementar T-22 (05-review-log.md, R-116): `AppDeps.simulationsRepo` opcional para CA-89; `save` reutiliza `quote` en la misma transacción que el `insert`; el service reexporta el tipo `Simulation` para el controller; `postSimulation` añadido a `simulationFactory.ts` (añadido a sus archivos).
 
 ## Contexto
 
@@ -469,13 +470,20 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Objetivo:** repositorio de simulaciones (`insert` con `tiers_json` y `RETURNING`, mapeo de fila a entidad) y ruta que reutiliza `quote` y responde 201 sin `Location`.
 - **Referencias:** RF-18, RF-24, RF-25, RB-09, RB-10, spec 4.5, 5.8.
 - **Depende de:** T-21.
-- **Archivos:** `backend/src/modules/simulations/simulations.repository.ts`, archivos del módulo, `app.ts` y `backend/test/api/simulations.create.test.ts`.
+- **Archivos:** `backend/src/modules/simulations/simulations.repository.ts`, archivos del módulo, `app.ts` y `backend/test/api/simulations.create.test.ts`. **Añadido en T-22 (R-116):** `backend/test/helpers/simulationFactory.ts` (`postSimulation`).
 - **Criterios:**
   - CA-21, CA-22, CA-24 (en el guardado), CA-25 y CA-89 (repositorio que falla, inyectado con `createApp(deps)`).
   - Los middlewares de recepción están montados: `text/plain` → 415 (test sin CA).
   - `?foo=1` → 422 (R-88).
 - **Tests:** API.
 - **Fuera de alcance:** historial.
+- **Decisiones de T-22 (R-116):**
+  - Repositorio: `createSimulationsRepository(db)` con `insert(draft): Simulation`. Hace `INSERT … RETURNING` con parámetros con nombre y guarda `tiers` en `tiers_json` con `JSON.stringify`. Al mapear la fila, `tiers_json` se lee con `JSON.parse`, sin recalcular (RB-09). Define `SimulationDraft` y `Simulation` (spec 5.2 sin `currency`). Un error de BD (CHECK, FK o trigger) no se traduce y da 500.
+  - Service: dependencia nueva `simulationsRepo: Pick<SimulationsRepository, 'insert'>`. `save(input)` ejecuta `insert(quote(...))` dentro de una sola `runInTransaction`: es la misma función de cálculo que el preview (RB-10). El service reexporta el tipo `Simulation`, porque ESLint no deja que el controller importe el repositorio, ni siquiera sus tipos.
+  - Controller: `create` responde 201 con los campos en el orden de 5.8 y `currency: 'EUR'`, sin `Location`.
+  - Ruta: `POST /` = `receiveJson` → `validate({ query: emptyQuerySchema, body: simulationSchema })` → controller, más `.all(methodNotAllowed)`. `/simulations/:id` no existe y cae en el 404 final (CA-25).
+  - CA-89: `AppDeps` admite un `simulationsRepo?: SimulationsRepository` opcional (decisión del usuario). Si no se pasa, `app.ts` usa `createSimulationsRepository(db)`.
+  - Helper: `postSimulation` en `simulationFactory.ts` (decisión del usuario).
 
 ### T-23 · `GET /customers/:id/simulations` [2–3 h]
 - **Objetivo:** historial paginado (`created_at DESC, id DESC`) que devuelve `tiers` guardados sin recalcular y responde 404 si el cliente no existe. Lo sirve el controller de `simulations`, montado bajo `/customers`.
