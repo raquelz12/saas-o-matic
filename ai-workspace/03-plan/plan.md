@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.12)
+# SaaS-O-Matic — Plan de implementación (v.13)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -13,6 +13,7 @@
 - v.10 — Decisiones tomadas al implementar T-08 (05-review-log.md, R-102): CIF en `taxId.ts`, sin `cif.ts`; orden formato → forma exigida → valor; las 17 iniciales probadas; filas sin CA nombradas `3.6.7: …` y `3.6.8: …`.
 - v.11 — Decisiones tomadas al implementar T-09 (05-review-log.md, R-103): API de cada normalizador y validador; si fallan longitud y formato, gana la longitud; se normaliza antes de validar (un tabulador se colapsa); U+FEFF se trata como espacio; marcas combinantes con `\p{M}`; `toUpperCase` antes de comprobar el identificador.
 - v.12 — Decisiones tomadas al implementar T-10a y T-10b (05-review-log.md, R-104): versiones exactas de las dependencias (supertest 7.3.1, no 7.3.2); `backend/package.json` (script `dev` con `--env-file-if-exists`) y `package-lock.json` añadidos a sus archivos; test unitario del `errorHandler` en `backend/src/http/errorHandler.test.ts`; `DB_PATH` por defecto `./data/saas-o-matic.db`; mensajes `Resource not found` e `Internal server error`; CORS con `origin` como array.
+- v.13 — Decisiones tomadas al implementar T-11 (05-review-log.md, R-105): better-sqlite3 13.0.3 y @types/better-sqlite3 9.6.0; `createTestDb()` aparte de `createTestApp()`; tabla `schema_migrations`; orden numérico y número duplicado como error; una transacción por migración; `db:migrate` falla si no existe `backend/migrations/`; script `db:migrate` también en el `package.json` raíz.
 
 ## Contexto
 
@@ -38,7 +39,7 @@ Reglas comunes a todas las tareas:
 | T-02 | @testing-library/user-event, @testing-library/jest-dom | **Opcionales. Decidido en T-02: no se instalan**; se usan `fireEvent` y las aserciones de Vitest. Se pueden reconsiderar en M4 |
 | T-03 | @types/node (24.x) en el backend | **Añadida en T-03.** Implícita: el test de lint usa `node:fs`, `node:path` e `import.meta.dirname`, y TypeScript 6 exige declararla en `types`. También la necesitarán T-10a y T-10b |
 | T-10b | express@5, cors, zod@4, supertest y sus @types | Stack. **Instaladas en T-10a y T-10b (R-104), con versión exacta:** zod 4.6.7 (T-10a), express 5.3.0, cors 2.8.6, supertest 7.3.1, @types/express 5.0.6, @types/cors 2.8.19 y @types/supertest 7.2.1. supertest 7.3.1 y no 7.3.2, que solo tenía 8 días. Sin `dotenv`: Node 24 lee el `.env` con `--env-file-if-exists` |
-| T-11 | better-sqlite3 y @types/better-sqlite3 | Stack |
+| T-11 | better-sqlite3 y @types/better-sqlite3 | Stack. **Instaladas en T-11 (R-105), con versión exacta:** better-sqlite3 13.0.3 y @types/better-sqlite3 9.6.0 (etiqueta `ts6.0`). La 13.1.1 y la 13.2.0 tenían menos de dos semanas. Trae binarios precompilados (`prebuilds/`, incluido `linux-x64`), así que no compila nada al instalarse |
 | T-24a | react-router, @tanstack/react-query | Stack |
 | T-26 | big.js y @types/big.js | Spec RF-42 |
 | T-27 | zod@4 en el frontend | Spec RF-41 |
@@ -243,7 +244,7 @@ Reglas comunes a todas las tareas:
 - **Objetivo:** conexión con `PRAGMA foreign_keys = ON` y runner de migraciones numeradas e idempotentes, con el script `db:migrate`.
 - **Referencias:** spec 4.1 y 4.7, ADR-003.
 - **Depende de:** T-10b, T-04.
-- **Archivos:** `backend/src/db/connection.ts`, `backend/src/db/migrate.ts`, migraciones de prueba en `backend/test/db/fixtures/` (nunca en `backend/migrations/`), `backend/test/db/migrate.test.ts`, el script `db:migrate` y `createTestApp` (`:memory:`).
+- **Archivos:** `backend/src/db/connection.ts`, `backend/src/db/migrate.ts`, migraciones de prueba en `backend/test/db/fixtures/` (nunca en `backend/migrations/`), `backend/test/db/migrate.test.ts`, el script `db:migrate` y `createTestApp` (`:memory:`). **Añadidos en T-11:** `package.json` raíz (script `db:migrate`, el que cita CLAUDE.md), `backend/package.json` y `package-lock.json` (dependencias y script). **Cambiado en T-11:** la BD de prueba la da `createTestDb()`, en `backend/test/helpers/createTestApp.ts`, y no `createTestApp`.
 - **Criterios:**
   - Ejecutar el runner dos veces no hace nada la segunda.
   - Las migraciones se aplican en orden numérico y se registran como aplicadas.
@@ -251,12 +252,21 @@ Reglas comunes a todas las tareas:
   - CI en verde con better-sqlite3 instalado en Node 24 (R-89, R-95).
 - **Tests:** `backend/test/db/migrate.test.ts` con las migraciones de prueba.
 - **Fuera de alcance:** el esquema real, el seed de tasas y la migración al arrancar (T-12, R-79).
+- **Decisiones de T-11 (R-105):**
+  - `openDatabase(path): Db` ejecuta `PRAGMA foreign_keys = ON` en cada conexión. Si la ruta no es `:memory:`, crea la carpeta del archivo, porque `./data/` no existe y sin ella better-sqlite3 no puede abrir la BD. No añade PRAGMAs que la spec no pide (por ejemplo, WAL).
+  - `runMigrations(db, dir = MIGRATIONS_DIR): string[]` devuelve las migraciones aplicadas en esa llamada. Registra cada una en `schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT …) STRICT`, con la fecha en ISO 8601 UTC como el resto de tablas (spec 4.1).
+  - Solo cuentan los archivos `NNN_nombre.sql`, ordenados por el valor numérico del prefijo (`10_` va después de `2_`). Los demás archivos se ignoran. Dos archivos con el mismo número (`001_` y `1_`) lanzan un error antes de aplicar nada.
+  - Cada migración y su registro van en una transacción. Si falla, no deja cambios a medias y las anteriores quedan aplicadas. Por eso las migraciones no deben llevar `BEGIN` ni `COMMIT` propios.
+  - Si la carpeta no existe, lanza `Migrations directory not found`. Hasta T-12, que crea `backend/migrations/001_init.sql`, `npm run db:migrate` termina con ese error.
+  - Ejecución por comando con `if (import.meta.main)` en `migrate.ts` (Node ≥ 24.2): config → conexión → migrar → log → cierre. Scripts `db:migrate` en el backend (`node --env-file-if-exists=.env src/db/migrate.ts`) y en la raíz (`npm run db:migrate -w backend`).
+  - **`createTestDb()` aparte:** abre una BD `:memory:` nueva en cada llamada. `createTestApp()` no cambia, y `createApp` todavía no recibe `db`: lo hará cuando haya repositorios. T-12 hará que `createTestDb()` migre y siembre las tasas.
+  - Migraciones de prueba en `fixtures/ordered/` (`1_`, `2_` y `10_`, más un `README.txt` que se ignora), `fixtures/failing/` y `fixtures/duplicate/`. El caso de solo aplicar las nuevas usa una carpeta temporal.
 
 ### T-12 · Esquema `001_init.sql`, seed de tasas y migración al arrancar [3–4 h]
 - **Objetivo:** crear las tablas `STRICT`, los `CHECK`, `UNIQUE`, índices y triggers de inmutabilidad de la spec; añadir el seed `INSERT OR IGNORE` de `tax_rates` con `db:seed`, y hacer que el servidor migre y siembre las tasas al arrancar.
 - **Referencias:** RF-10, RF-25, RF-32, RF-33, spec 4.3–4.5 y 4.7, R-71.
 - **Depende de:** T-11.
-- **Archivos:** `backend/migrations/001_init.sql`, `backend/src/db/seedTaxRates.ts`, `server.ts`, el script `db:seed`, `createTestApp` (migrar y sembrar), `backend/test/db/schema.test.ts` y `backend/test/db/seed.test.ts`.
+- **Archivos:** `backend/migrations/001_init.sql`, `backend/src/db/seedTaxRates.ts`, `server.ts`, el script `db:seed`, `createTestDb` (migrar y sembrar; R-105), `backend/test/db/schema.test.ts` y `backend/test/db/seed.test.ts`.
 - **Criterios:**
   - CA-26: `UPDATE` o `DELETE` sobre `simulations` aborta.
   - CA-27: el `CHECK` de `total_cents` rechaza el `INSERT`.
