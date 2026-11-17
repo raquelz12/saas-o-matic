@@ -51,6 +51,14 @@ export class UnsupportedMediaTypeError extends AppError {
   }
 }
 
+/** Fallos de la fase de validación (spec 3.1, pasos 2–5), todos en un solo 422. */
+export class ValidationError extends AppError {
+  constructor(details: ErrorDetail[]) {
+    super(422, 'VALIDATION_ERROR', 'Request validation failed', details);
+    this.name = 'ValidationError';
+  }
+}
+
 /** Ruta existente con un método no soportado → 405 `METHOD_NOT_ALLOWED` (spec 5.1). */
 export class MethodNotAllowedError extends AppError {
   constructor() {
