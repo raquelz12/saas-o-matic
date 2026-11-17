@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.16)
+# SaaS-O-Matic — Plan de implementación (v.17)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -17,6 +17,7 @@
 - v.14 — Decisiones tomadas al implementar T-12 (05-review-log.md, R-106): `prepareDatabase()` para el arranque y `createTestDb()`; `seedTaxRates` con `INSERT OR IGNORE`; `db:seed` no migra; `migrate.test.ts` con BD vacía; tests de esquema en dos archivos y un módulo de filas; script `db:seed` también en la raíz.
 - v.15 — Decisiones tomadas al implementar T-13 (05-review-log.md, R-107): `receiveJson` montado por ruta; `Content-Type` analizado a mano, solo con `charset=utf-8`; body vacío detectado con `verify`; 405 sin `Allow`; subclases de `AppError` en `shared/errors.ts`; punto «body vacío» de architecture verificado.
 - v.16 — Decisiones tomadas al implementar T-14 (05-review-log.md, R-108): `REQUIRED` decidido por el valor de entrada, no por el código de zod; un issue por campo; códigos sin regla → `INVALID_FORMAT`; `details` en orden `params` → `query` → `body`; salida en `res.locals.validated` con `getValidated`; `ValidationError` en `shared/errors.ts`; tres puntos de zod 4 y Express 5 de architecture verificados.
+- v.17 — Decisiones tomadas al implementar T-15 (05-review-log.md, R-109): `INVALID_FORMAT` para `page`/`pageSize` sin formato y `OUT_OF_RANGE` por encima del máximo; constantes de paginación en `shared/pagination.ts`; exports de `commonSchemas.ts`, con `paginationQueryFields` para T-20.
 
 ## Contexto
 
@@ -339,6 +340,11 @@ Reglas comunes a todas las tareas:
   - La query vacía estricta rechaza `?foo=1` con `UNKNOWN_FIELD`.
 - **Tests:** unitarios a través de `validate`, sin CA (CA-75 va en T-20 y CA-79 en T-19, R-85).
 - **Fuera de alcance:** el schema de `search` (T-20).
+- **Decisiones de T-15 (R-109):**
+  - Issues de `page` y `pageSize`: sin formato `^[1-9][0-9]*$` (`0`, `abc`, `01`, `+1`, `1.0`, vacío) → `INVALID_FORMAT`; por encima del máximo → `OUT_OF_RANGE`; repetido → `INVALID_TYPE`. `pageSize=0` da `INVALID_FORMAT`.
+  - `shared/pagination.ts`: `PageParams`, `Page<T>` y las constantes `DEFAULT_PAGE` (1), `DEFAULT_PAGE_SIZE` (20), `MAX_PAGE_SIZE` (100) y `MAX_PAGE` (2 147 483 647). El máximo de `:id` es interno de `commonSchemas.ts`.
+  - `commonSchemas.ts` exporta `idParamsSchema` (un único `refine` con `params.issue: 'INVALID_FORMAT'`, salida `number`), `paginationQueryFields` (shape que T-20 compone con `search`), `paginationQuerySchema` y `emptyQuerySchema`.
+  - Las claves desconocidas van en `details` después de `page` y `pageSize`: zod emite `unrecognized_keys` al final. Sin cambios en `zodIssues.ts`.
 
 ---
 
