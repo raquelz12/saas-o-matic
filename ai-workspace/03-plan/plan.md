@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.15)
+# SaaS-O-Matic — Plan de implementación (v.16)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -16,6 +16,7 @@
 - v.13 — Decisiones tomadas al implementar T-11 (05-review-log.md, R-105): better-sqlite3 13.0.3 y @types/better-sqlite3 9.6.0; `createTestDb()` aparte de `createTestApp()`; tabla `schema_migrations`; orden numérico y número duplicado como error; una transacción por migración; `db:migrate` falla si no existe `backend/migrations/`; script `db:migrate` también en el `package.json` raíz.
 - v.14 — Decisiones tomadas al implementar T-12 (05-review-log.md, R-106): `prepareDatabase()` para el arranque y `createTestDb()`; `seedTaxRates` con `INSERT OR IGNORE`; `db:seed` no migra; `migrate.test.ts` con BD vacía; tests de esquema en dos archivos y un módulo de filas; script `db:seed` también en la raíz.
 - v.15 — Decisiones tomadas al implementar T-13 (05-review-log.md, R-107): `receiveJson` montado por ruta; `Content-Type` analizado a mano, solo con `charset=utf-8`; body vacío detectado con `verify`; 405 sin `Allow`; subclases de `AppError` en `shared/errors.ts`; punto «body vacío» de architecture verificado.
+- v.16 — Decisiones tomadas al implementar T-14 (05-review-log.md, R-108): `REQUIRED` decidido por el valor de entrada, no por el código de zod; un issue por campo; códigos sin regla → `INVALID_FORMAT`; `details` en orden `params` → `query` → `body`; salida en `res.locals.validated` con `getValidated`; `ValidationError` en `shared/errors.ts`; tres puntos de zod 4 y Express 5 de architecture verificados.
 
 ## Contexto
 
@@ -309,7 +310,7 @@ Reglas comunes a todas las tareas:
 - **Objetivo:** `validate({ body?, query?, params? })` con fábricas de schema, acumulación de errores en un solo 422, salida validada en `res.locals` y traducción de issues de zod 4 al catálogo 3.2.
 - **Referencias:** RF-29, RF-31, spec 3.1 (pasos 2–5), 3.2, architecture §5 (traductor), ADR-002.
 - **Depende de:** T-13.
-- **Archivos:** `backend/src/http/validate.ts`, `backend/src/http/zodIssues.ts` y `backend/test/http/validate.test.ts`.
+- **Archivos:** `backend/src/http/validate.ts`, `backend/src/http/zodIssues.ts` y `backend/test/http/validate.test.ts`. **Añadidos en T-14 (R-108):** `backend/src/shared/errors.ts` (`ValidationError`) y `architecture.md` (*Pendiente de verificar*).
 - **Criterios:**
   - Cada regla de la lista del traductor (architecture §5) produce su issue: `REQUIRED`, `INVALID_TYPE`, `UNKNOWN_FIELD` (una por clave), `OUT_OF_RANGE`, `INVALID_LENGTH`, `UNSUPPORTED_VALUE`, `INVALID_FORMAT` y `field: "body"`.
   - Un parámetro repetido da `INVALID_TYPE`; la clave `search[]` da `UNKNOWN_FIELD`.
@@ -317,6 +318,13 @@ Reglas comunes a todas las tareas:
   - Quedan fijados los puntos de zod 4 de *Pendiente de verificar*.
 - **Tests:** schemas sintéticos de prueba, sin módulos reales y sin CA.
 - **Fuera de alcance:** los schemas concretos de cada endpoint.
+- **Decisiones de T-14 (R-108):**
+  - `translateIssues(issues, input, part)` (`zodIssues.ts`) da `REQUIRED` cuando el valor de entrada en la ruta del issue es `undefined` o `null`, sea cual sea el código: con zod 4.6.7 un enum ausente da `invalid_value`, no `invalid_type`. En la raíz no aplica: un body `null` da `field: "body"`, `INVALID_TYPE`.
+  - Resto de reglas: `invalid_type` → `INVALID_TYPE`; `too_small`/`too_big` → `OUT_OF_RANGE` con `origin` `number`, `int` o `bigint`, `INVALID_LENGTH` en otro caso; `invalid_value` → `UNSUPPORTED_VALUE`; `invalid_format` → `INVALID_FORMAT`; `unrecognized_keys` → un `UNKNOWN_FIELD` por clave; `custom` con `params.issue` del catálogo → ese issue. Cualquier otro código, o un `custom` sin issue del catálogo → `INVALID_FORMAT`.
+  - `field` es la ruta unida por `.`; en la raíz, el nombre de la parte. Si zod emite varios issues para un campo, se queda el primero.
+  - `validate({ params?, query?, body? })` acepta un schema o una fábrica `() => schema` evaluada en cada petición, usa `safeParse` síncrono y junta los `details` en el orden `params` → `query` → `body` en un solo `ValidationError` (422 `VALIDATION_ERROR`, `Request validation failed`).
+  - La salida va a `res.locals.validated` (`{ body, query, params }`, `undefined` en las partes sin schema) y se lee con `getValidated<B, Q, P>(res)`, cuyo tipo no se comprueba en tiempo de ejecución.
+  - Sin cambios en `app.ts`: Express 5 ya usa el parser `simple`, y los tests lo fijan.
 
 ### T-15 · Schemas comunes: `:id`, paginación y query vacía [2 h]
 - **Objetivo:** schemas reutilizables del parámetro `:id` (refine único → `INVALID_FORMAT`), de `page` y `pageSize` (`^[1-9][0-9]*$`, valores por defecto y rangos) y de la query vacía estricta, más los tipos de paginación.

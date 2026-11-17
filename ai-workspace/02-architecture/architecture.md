@@ -184,8 +184,8 @@ No está contrastado contra documentación el comportamiento exacto de Express 5
 
 | Punto | Test que lo fija |
 |---|---|
-| Código de issue de zod 4 para un decimal en un campo entero | CA-29 |
+| Código de issue de zod 4 para un decimal en un campo entero | **Verificado en T-14 (R-108):** zod 4.6.7 emite `invalid_type` con `expected: 'int'`, que se traduce a `INVALID_TYPE`. Lo comprobará también CA-29 en la ruta real |
 | Body vacío con `express.json` | **Verificado en T-13 (R-107):** body-parser 2.4.0 lo convierte en `{}` sin error; `jsonBody` lo detecta con `verify` y responde 400. Lo comprobará también CA-84 en la ruta real |
-| Parser de query y parámetros no enteros | CA-75 |
-| Parámetro repetido y forma `search[]=` con el parser `simple` | CA-109 |
+| Parser de query y parámetros no enteros | **Verificado en T-14 (R-108):** Express 5.3.0 usa el parser `simple` por defecto y los valores llegan como string sin convertir (`1.0` sigue siendo `"1.0"`). El rechazo de `page` no entero lo fija T-15 y lo comprobará CA-75 |
+| Parámetro repetido y forma `search[]=` con el parser `simple` | **Verificado en T-14 (R-108):** un parámetro repetido llega como array (`invalid_type`, que da `INVALID_TYPE`) y `search[]=` llega como la clave literal `search[]` (`UNKNOWN_FIELD`). Lo comprobará también CA-109 |
 | Checksum ejecutado aunque fallen otros campos | CA-110 |
