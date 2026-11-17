@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.18)
+# SaaS-O-Matic — Plan de implementación (v.19)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -19,6 +19,7 @@
 - v.16 — Decisiones tomadas al implementar T-14 (05-review-log.md, R-108): `REQUIRED` decidido por el valor de entrada, no por el código de zod; un issue por campo; códigos sin regla → `INVALID_FORMAT`; `details` en orden `params` → `query` → `body`; salida en `res.locals.validated` con `getValidated`; `ValidationError` en `shared/errors.ts`; tres puntos de zod 4 y Express 5 de architecture verificados.
 - v.17 — Decisiones tomadas al implementar T-15 (05-review-log.md, R-109): `INVALID_FORMAT` para `page`/`pageSize` sin formato y `OUT_OF_RANGE` por encima del máximo; constantes de paginación en `shared/pagination.ts`; exports de `commonSchemas.ts`, con `paginationQueryFields` para T-20.
 - v.18 — Decisiones tomadas al implementar T-16 (05-review-log.md, R-110): `AppDeps` recibe `db`; `server.ts` y `createTestApp.ts` añadidos a sus archivos (`createTestApp` usa `createTestDb()` por defecto); módulo `countries` con fábricas; `getRateBp` devuelve `undefined` con un código inexistente; test sin caché de `tax_rates`.
+- v.19 — Decisiones tomadas al implementar T-17 (05-review-log.md, R-111): `details` en el orden en que zod emite los issues, con el checksum al final (distinto del ejemplo de 5.3); checksum como `superRefine` del objeto con `when`; `country` con refine en vez de `z.enum`; exports `buildCreateCustomerSchema`, `PLANS` y `CreateCustomerInput`.
 
 ## Contexto
 
@@ -379,6 +380,12 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
   - El país se valida contra la lista recibida; `" gb "` → `GB`.
 - **Tests:** unitarios del schema pasando por `validate`, descriptivos y sin CA. Los CA del alta van todos en T-18 (R-85).
 - **Fuera de alcance:** persistencia, 409 y ruta.
+- **Decisiones de T-17 (R-111):**
+  - Exporta `buildCreateCustomerSchema(supportedCountries)`, `PLANS` y el tipo `CreateCustomerInput` (`z.output`).
+  - Cada campo: `z.string()` → `transform(normalizador del dominio)` → `superRefine` que traduce el resultado del dominio a un issue `custom` con `params.issue`. El email añade `.pipe(z.email())` tras la longitud.
+  - `country`: trim, mayúsculas y refine contra la lista recibida (`UNSUPPORTED_VALUE`); no `z.enum`, que no admite una lista vacía. `plan`: trim, mayúsculas y `z.enum(PLANS)`.
+  - Checksum: `superRefine` del objeto con `path: ['taxId']` y la opción `when` de zod 4. Se ejecuta si no hay issues en `taxId` ni en `country`, aunque fallen otros campos o haya claves desconocidas; solo valida si `country` es `ES` y emite `INVALID_FORMAT` o `INVALID_CHECKSUM`.
+  - **Orden de `details`:** el de zod, con el checksum al final (`[email, taxId]`), distinto del ejemplo de 5.3, que es ilustrativo (decisión del usuario). Los tests de T-18 no deben depender del orden de ese ejemplo.
 
 ### T-18 · `POST /customers`: repositorio, service y ruta [3–4 h]
 - **Objetivo:** persistir el cliente con `company_name_search`, traducir `SQLITE_CONSTRAINT_UNIQUE` en `DuplicateError` (409 `taxId`/`DUPLICATE`), responder 201 con `Location`, y montar la ruta con 415, 400, 413 y 405.
