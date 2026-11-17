@@ -30,6 +30,8 @@ export interface CustomersRepository {
    * Si el par (país, identificador) ya existe → `DuplicateError('taxId')`.
    */
   insert(draft: CustomerDraft): Customer;
+  /** Cliente con ese `id`, o `undefined` si no existe (RF-16). */
+  findById(id: number): Customer | undefined;
 }
 
 interface CustomerRow {
@@ -73,6 +75,9 @@ export function createCustomersRepository(db: Db): CustomersRepository {
      VALUES (@companyName, @companyNameSearch, @taxId, @email, @country, @plan)
      RETURNING ${COLUMNS}`,
   );
+  const selectById = db.prepare<[number], CustomerRow>(
+    `SELECT ${COLUMNS} FROM customers WHERE id = ?`,
+  );
 
   return {
     insert: (draft) => {
@@ -84,6 +89,10 @@ export function createCustomersRepository(db: Db): CustomersRepository {
         if (isUniqueViolation(err)) throw new DuplicateError('taxId');
         throw err;
       }
+    },
+    findById: (id) => {
+      const row = selectById.get(id);
+      return row === undefined ? undefined : toCustomer(row);
     },
   };
 }

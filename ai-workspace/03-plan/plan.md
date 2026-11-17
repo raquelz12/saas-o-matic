@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.20)
+# SaaS-O-Matic — Plan de implementación (v.21)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -21,6 +21,7 @@
 - v.18 — Decisiones tomadas al implementar T-16 (05-review-log.md, R-110): `AppDeps` recibe `db`; `server.ts` y `createTestApp.ts` añadidos a sus archivos (`createTestApp` usa `createTestDb()` por defecto); módulo `countries` con fábricas; `getRateBp` devuelve `undefined` con un código inexistente; test sin caché de `tax_rates`.
 - v.19 — Decisiones tomadas al implementar T-17 (05-review-log.md, R-111): `details` en el orden en que zod emite los issues, con el checksum al final (distinto del ejemplo de 5.3); checksum como `superRefine` del objeto con `when`; `country` con refine en vez de `z.enum`; exports `buildCreateCustomerSchema`, `PLANS` y `CreateCustomerInput`.
 - v.20 — Decisiones tomadas al implementar T-18 (05-review-log.md, R-112): `DuplicateError` en `shared/errors.ts` (añadido a sus archivos); el service calcula `company_name_search` con `searchKey`; el repositorio traduce `SQLITE_CONSTRAINT_UNIQUE` sin SELECT previo; los países llegan a la ruta como función desde `app.ts`; `plan: string` en la entidad; `GET /customers` da 405 hasta T-20.
+- v.21 — Decisiones tomadas al implementar T-19 (05-review-log.md, R-113): `findById` devuelve `undefined` y el `NotFoundError` lo lanza el service; 404 con el mensaje genérico `Resource not found`; `/:id` valida `params` y `query` y da 405 al resto de métodos, incluido `POST`.
 
 ## Contexto
 
@@ -419,6 +420,12 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Criterios:** CA-78, CA-79 y CA-86; la respuesta no expone `company_name_search`; `?foo=1` → 422 (R-88).
 - **Tests:** API.
 - **Fuera de alcance:** búsqueda e historial.
+- **Decisiones de T-19 (R-113):**
+  - Repositorio: `findById(id)` es un `SELECT` con las mismas columnas que el `RETURNING` del alta (sin `company_name_search`) y devuelve `Customer | undefined`. Así T-21 lo reutiliza desde `simulations.service`.
+  - Service: `getById(id)` lanza `NotFoundError()` si no existe (architecture §5), con el mensaje genérico `Resource not found`.
+  - Controller: lee `getValidated<unknown, unknown, { id: number }>(res).params` y responde 200 con el `Customer`.
+  - Ruta: `GET /:id` = `validate({ params: idParamsSchema, query: emptyQuerySchema })` → controller, más `.all(methodNotAllowed)`. `POST`, `PUT`, `PATCH` y `DELETE` dan 405 sin pasar por `receiveJson` (RF-10).
+  - Además de los CA, tests sin CA de: 200 igual al 201 del alta y sin `company_name_search`, `id` fuera de rango o sin formato (`2147483648`, `01`, `+1`, `1.0`, `-1`) → `INVALID_FORMAT`, `2147483647` → 404, `?foo=1` → `UNKNOWN_FIELD`, acumulación `params` → `query`, y `PUT`/`PATCH`/`POST` → 405.
 
 ### T-20 · `GET /customers`: búsqueda y paginación [3–4 h]
 - **Objetivo:** búsqueda OR por clave de nombre e identificador normalizado, con escapado de `\ % _` y `LIKE ? ESCAPE '\'`, rama de identificador omitida si normaliza a vacío, orden `company_name_search, id`, paginación con `total` y schema de `search`.

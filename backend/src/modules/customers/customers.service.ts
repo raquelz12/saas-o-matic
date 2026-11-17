@@ -1,3 +1,4 @@
+import { NotFoundError } from '../../shared/errors.ts';
 import type { Customer, CustomersRepository } from './customers.repository.ts';
 import { searchKey } from './domain/searchKey.ts';
 
@@ -16,11 +17,18 @@ export interface NewCustomer {
 export interface CustomersService {
   /** Alta de cliente (RF-01). Un par (país, identificador) repetido → `DuplicateError`. */
   create(input: NewCustomer): Customer;
+  /** Detalle de cliente (RF-16). Si no existe → `NotFoundError` (404). */
+  getById(id: number): Customer;
 }
 
 export function createCustomersService(customersRepo: CustomersRepository): CustomersService {
   return {
     create: (input) =>
       customersRepo.insert({ ...input, companyNameSearch: searchKey(input.companyName) }),
+    getById: (id) => {
+      const customer = customersRepo.findById(id);
+      if (customer === undefined) throw new NotFoundError();
+      return customer;
+    },
   };
 }
