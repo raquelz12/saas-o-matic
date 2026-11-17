@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.24)
+# SaaS-O-Matic — Plan de implementación (v.25)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -25,6 +25,7 @@
 - v.22 — Decisiones tomadas al implementar T-20 (05-review-log.md, R-114): `search` medido en code points tras el trim; claves de RB-13 calculadas en el service y rama de identificador omitida si normaliza a vacío; escapado de LIKE y `@taxId` nulo en el repositorio; `total` con `COUNT(*)` aparte.
 - v.23 — Decisiones tomadas al implementar T-21 (05-review-log.md, R-115): tasa inexistente → 500; `runInTransaction` inyectado desde `app.ts`; `quote` interna reutilizable por T-22; máximo de `customerId` como constante local; tests en dos archivos con el helper `simulationFactory.ts` (añadidos a sus archivos); CA-12 con un único servidor y `fetch`.
 - v.24 — Decisiones tomadas al implementar T-22 (05-review-log.md, R-116): `AppDeps.simulationsRepo` opcional para CA-89; `save` reutiliza `quote` en la misma transacción que el `insert`; el service reexporta el tipo `Simulation` para el controller; `postSimulation` añadido a `simulationFactory.ts` (añadido a sus archivos).
+- v.25 — Decisiones tomadas al implementar T-23 (05-review-log.md, R-117): `AppDeps.simulationsRepo` pasa a `Partial<SimulationsRepository>`, combinado con el repositorio real en `app.ts`; anotación del sustituto de CA-89 en `simulations.create.test.ts` (añadido a sus archivos); `history` con `findById` y `listByCustomer` en una sola transacción; router propio `createCustomerSimulationsRouter` montado bajo `/api/customers`; tests sin CA de orden por `createdAt` y de `tiers` sin recalcular con SQL directo.
 
 ## Contexto
 
@@ -489,13 +490,20 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Objetivo:** historial paginado (`created_at DESC, id DESC`) que devuelve `tiers` guardados sin recalcular y responde 404 si el cliente no existe. Lo sirve el controller de `simulations`, montado bajo `/customers`.
 - **Referencias:** RF-27, RF-28, RB-09, RB-11, spec 5.6.
 - **Depende de:** T-22.
-- **Archivos:** archivos del módulo `simulations`, `app.ts` y `backend/test/api/simulations.history.test.ts`.
+- **Archivos:** archivos del módulo `simulations`, `app.ts` y `backend/test/api/simulations.history.test.ts`. **Añadido en T-23 (R-117):** `backend/test/api/simulations.create.test.ts` (solo la anotación del sustituto de CA-89).
 - **Criterios:**
   - CA-19, CA-23, CA-80 y CA-81.
   - Paginación: `pageSize` respetado y una página más allá del final devuelve `items: []`.
   - `id` inválido → 422; `?foo=1` → 422; `POST /customers/1/simulations` → 405 (R-88).
 - **Tests:** API.
 - **Fuera de alcance:** frontend.
+- **Decisiones de T-23 (R-117):**
+  - Repositorio: `listByCustomer(customerId, { page, pageSize })` devuelve `{ items, total }`. `total` sale de un `COUNT(*)` y la página de `ORDER BY created_at DESC, id DESC LIMIT @limit OFFSET @offset`, que sirve el índice del historial. Reutiliza `toSimulation`: `tiers_json` se lee sin recalcular (RB-09).
+  - Service: `history({ customerId, page, pageSize })` devuelve `Page<Simulation>`. Ejecuta `findById` (si no existe, `NotFoundError`) y `listByCustomer` dentro de una sola `runInTransaction`, para que `items` y `total` salgan de la misma lectura. Tipo de entrada propio `HistoryRequest`, sin zod.
+  - Controller: `history` lee `params.id` y la query validados y responde 200 con cada item en el formato de `POST /simulations` (`currency: 'EUR'`).
+  - Ruta: `createCustomerSimulationsRouter` en `simulations.routes.ts`, con `GET /:id/simulations` = `validate({ params: idParamsSchema, query: paginationQuerySchema })` → controller, más `.all(methodNotAllowed)`. `app.ts` lo monta en `/api/customers`. Sin cambios en `simulations.schemas.ts`.
+  - `AppDeps.simulationsRepo` pasa a `Partial<SimulationsRepository>`: `app.ts` lo combina con el repositorio real (`{ ...createSimulationsRepository(db), ...simulationsRepo }`), así que cada método se sustituye por separado (decisión del usuario). El sustituto de CA-89 se anota como `Partial<SimulationsRepository>` (decisión del usuario).
+  - El orden por `createdAt` antes que por `id` y los `tiers` sin recalcular se prueban insertando filas con SQL directo en el test, porque por la API no se puede fijar `created_at` ni guardar un snapshot distinto del cálculo.
 
 ---
 

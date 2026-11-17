@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { emptyQuerySchema } from '../../http/commonSchemas.ts';
+import {
+  emptyQuerySchema,
+  idParamsSchema,
+  paginationQuerySchema,
+} from '../../http/commonSchemas.ts';
 import { receiveJson } from '../../http/jsonBody.ts';
 import { methodNotAllowed } from '../../http/methodNotAllowed.ts';
 import { validate } from '../../http/validate.ts';
@@ -28,6 +32,19 @@ export function createSimulationsRouter(controller: SimulationsController): Rout
       validate({ query: emptyQuerySchema, body: simulationSchema }),
       controller.preview,
     )
+    .all(methodNotAllowed);
+  return router;
+}
+
+/**
+ * Historial de un cliente (spec 5.6), montado bajo `/api/customers` desde `app.ts`
+ * (architecture §2). Solo admite `GET`; el resto de métodos da 405.
+ */
+export function createCustomerSimulationsRouter(controller: SimulationsController): Router {
+  const router = Router();
+  router
+    .route('/:id/simulations')
+    .get(validate({ params: idParamsSchema, query: paginationQuerySchema }), controller.history)
     .all(methodNotAllowed);
   return router;
 }

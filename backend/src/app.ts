@@ -17,7 +17,10 @@ import {
   createSimulationsRepository,
   type SimulationsRepository,
 } from './modules/simulations/simulations.repository.ts';
-import { createSimulationsRouter } from './modules/simulations/simulations.routes.ts';
+import {
+  createCustomerSimulationsRouter,
+  createSimulationsRouter,
+} from './modules/simulations/simulations.routes.ts';
 import { createSimulationsService } from './modules/simulations/simulations.service.ts';
 import type { Logger } from './shared/logger.ts';
 
@@ -27,8 +30,11 @@ export interface AppDeps {
   logger: Logger;
   /** Conexión ya migrada y con el seed de tasas (`prepareDatabase`). */
   db: Db;
-  /** Sustituto del repositorio de simulaciones; por defecto, el de `db` (CA-89). */
-  simulationsRepo?: SimulationsRepository;
+  /**
+   * Sustitutos de métodos del repositorio de simulaciones (CA-89); los que no se
+   * pasan son los del repositorio real sobre `db`.
+   */
+  simulationsRepo?: Partial<SimulationsRepository>;
 }
 
 /** Único punto de composición del backend (architecture §2). */
@@ -56,14 +62,14 @@ export function createApp({ config, logger, db, simulationsRepo }: AppDeps): Exp
   const simulationsService = createSimulationsService({
     customersRepo,
     taxRatesRepo,
-    simulationsRepo: simulationsRepo ?? createSimulationsRepository(db),
+    simulationsRepo: { ...createSimulationsRepository(db), ...simulationsRepo },
     // El service no importa better-sqlite3: recibe la transacción ya construida (architecture §4).
     runInTransaction: (fn) => db.transaction(fn)(),
   });
-  app.use(
-    '/api/simulations',
-    createSimulationsRouter(createSimulationsController(simulationsService)),
-  );
+  const simulationsController = createSimulationsController(simulationsService);
+  app.use('/api/simulations', createSimulationsRouter(simulationsController));
+  // El historial lo sirve el controller de simulaciones bajo la ruta de clientes (architecture §2).
+  app.use('/api/customers', createCustomerSimulationsRouter(simulationsController));
 
   app.use(notFound);
   app.use(createErrorHandler(logger));
