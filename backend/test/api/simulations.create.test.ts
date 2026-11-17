@@ -169,7 +169,7 @@ describe('POST /api/simulations: recepción, validación y métodos', () => {
 describe('POST /api/simulations: error interno', () => {
   it('CA-89: un error interno simulado → 500 INTERNAL_ERROR sin traza en message', async () => {
     const failure = new Error('disk I/O error at simulations.repository.ts:42');
-    const failingRepo: SimulationsRepository = {
+    const failingRepo: Partial<SimulationsRepository> = {
       insert: () => {
         throw failure;
       },

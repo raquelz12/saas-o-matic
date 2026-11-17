@@ -1,4 +1,5 @@
 import type { Db } from '../../db/connection.ts';
+import type { PageParams } from '../../shared/pagination.ts';
 import type { Tier } from './domain/pricing.ts';
 
 /** Datos de una simulación ya calculada, listos para persistir (spec 4.5, RF-24). */
@@ -25,6 +26,16 @@ export interface Simulation extends SimulationDraft {
 export interface SimulationsRepository {
   /** Inserta la simulación y la devuelve con `id` y `createdAt` generados por la BD. */
   insert(draft: SimulationDraft): Simulation;
+  /**
+   * Página del historial de un cliente, de la más reciente a la más antigua
+   * (`created_at DESC, id DESC`, RF-27), y el total de sus simulaciones (RF-28).
+   */
+  listByCustomer(customerId: number, page: PageParams): SimulationList;
+}
+
+export interface SimulationList {
+  items: Simulation[];
+  total: number;
 }
 
 interface SimulationRow {
@@ -43,6 +54,13 @@ interface SimulationRow {
 
 /** Parámetros con nombre del INSERT: el draft con los tramos ya serializados. */
 type InsertParams = Omit<SimulationDraft, 'tiers'> & { tiersJson: string };
+
+/** Parámetros con nombre de la página del historial. */
+interface HistoryParams {
+  customerId: number;
+  limit: number;
+  offset: number;
+}
 
 const COLUMNS = `id, customer_id, users, storage_gb, api_calls_per_month, tax_rate_bp,
   base_cents, tax_cents, total_cents, tiers_json, created_at`;
@@ -75,6 +93,16 @@ export function createSimulationsRepository(db: Db): SimulationsRepository {
        @baseCents, @taxCents, @totalCents, @tiersJson)
      RETURNING ${COLUMNS}`,
   );
+  const countByCustomer = db
+    .prepare<[number], number>('SELECT COUNT(*) FROM simulations WHERE customer_id = ?')
+    .pluck();
+  // El índice (customer_id, created_at DESC, id DESC) sirve esta consulta (spec 4.5).
+  const selectHistoryPage = db.prepare<[HistoryParams], SimulationRow>(
+    `SELECT ${COLUMNS} FROM simulations
+     WHERE customer_id = @customerId
+     ORDER BY created_at DESC, id DESC
+     LIMIT @limit OFFSET @offset`,
+  );
 
   return {
     // Un error de BD (CHECK, FK, trigger) es un bug: se propaga y da 500 (architecture §5).
@@ -82,6 +110,15 @@ export function createSimulationsRepository(db: Db): SimulationsRepository {
       const row = insertSimulation.get({ ...fields, tiersJson: JSON.stringify(tiers) });
       if (row === undefined) throw new Error('INSERT … RETURNING returned no row');
       return toSimulation(row);
+    },
+    listByCustomer: (customerId, { page, pageSize }) => {
+      const total = countByCustomer.get(customerId) ?? 0;
+      const rows = selectHistoryPage.all({
+        customerId,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+      });
+      return { items: rows.map(toSimulation), total };
     },
   };
 }
