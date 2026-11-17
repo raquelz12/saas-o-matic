@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paginationQueryFields } from '../../http/commonSchemas.ts';
 import { normalizeCompanyName, validateCompanyName } from './domain/companyName.ts';
 import { normalizeEmail, validateEmailLength } from './domain/email.ts';
 import { normalizeTaxId, validateGenericTaxId, validateSpanishTaxId } from './domain/taxId.ts';
@@ -88,3 +89,27 @@ export function buildCreateCustomerSchema(supportedCountries: readonly string[])
 
 /** Body validado y normalizado de `POST /customers`. */
 export type CreateCustomerInput = z.output<ReturnType<typeof buildCreateCustomerSchema>>;
+
+/** Máximo de `search` (spec 3.5), en code points tras el trim (R-114). */
+const SEARCH_MAX_LENGTH = 100;
+
+/**
+ * `search`: trim y máximo de 100 code points → `INVALID_LENGTH` (CA-76). No aplica
+ * más validaciones (RF-13); ausente equivale a vacío, que devuelve todos (RF-14).
+ */
+const searchField = z
+  .string()
+  .transform((value) => value.trim())
+  .refine((value) => [...value].length <= SEARCH_MAX_LENGTH, {
+    params: { issue: 'INVALID_LENGTH' },
+  })
+  .default('');
+
+/** Query de `GET /customers` (spec 5.4): `search`, `page` y `pageSize`, sin más claves. */
+export const searchCustomersQuerySchema = z.strictObject({
+  search: searchField,
+  ...paginationQueryFields,
+});
+
+/** Query validada de `GET /customers`. */
+export type SearchCustomersQuery = z.output<typeof searchCustomersQuerySchema>;

@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.21)
+# SaaS-O-Matic — Plan de implementación (v.22)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -22,6 +22,7 @@
 - v.19 — Decisiones tomadas al implementar T-17 (05-review-log.md, R-111): `details` en el orden en que zod emite los issues, con el checksum al final (distinto del ejemplo de 5.3); checksum como `superRefine` del objeto con `when`; `country` con refine en vez de `z.enum`; exports `buildCreateCustomerSchema`, `PLANS` y `CreateCustomerInput`.
 - v.20 — Decisiones tomadas al implementar T-18 (05-review-log.md, R-112): `DuplicateError` en `shared/errors.ts` (añadido a sus archivos); el service calcula `company_name_search` con `searchKey`; el repositorio traduce `SQLITE_CONSTRAINT_UNIQUE` sin SELECT previo; los países llegan a la ruta como función desde `app.ts`; `plan: string` en la entidad; `GET /customers` da 405 hasta T-20.
 - v.21 — Decisiones tomadas al implementar T-19 (05-review-log.md, R-113): `findById` devuelve `undefined` y el `NotFoundError` lo lanza el service; 404 con el mensaje genérico `Resource not found`; `/:id` valida `params` y `query` y da 405 al resto de métodos, incluido `POST`.
+- v.22 — Decisiones tomadas al implementar T-20 (05-review-log.md, R-114): `search` medido en code points tras el trim; claves de RB-13 calculadas en el service y rama de identificador omitida si normaliza a vacío; escapado de LIKE y `@taxId` nulo en el repositorio; `total` con `COUNT(*)` aparte.
 
 ## Contexto
 
@@ -435,6 +436,12 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Criterios:** CA-69 a CA-77, CA-106, CA-107 y CA-109; `search=-` busca solo por nombre.
 - **Tests:** API.
 - **Fuera de alcance:** frontend.
+- **Decisiones de T-20 (R-114):**
+  - Schema: `searchCustomersQuerySchema` en `customers.schemas.ts` = `z.strictObject({ search, ...paginationQueryFields })`. `search` es `z.string()` → trim → `refine` de ≤ 100 code points (`INVALID_LENGTH`) → `.default('')`. El máximo se mide tras el trim (decisión del usuario). Exporta el tipo `SearchCustomersQuery`.
+  - Service: `search({ search, page, pageSize })` devuelve `Page<Customer>`. Con `search` vacío no hay filtro (RF-14). Si no, `nameKey = searchKey(search)` y `taxIdKey = normalizeTaxId(search)`, que se omite si queda vacío (RF-13). Define su propio tipo de entrada, `CustomerSearch`, para no depender de zod.
+  - Repositorio: `search(filter | undefined, { page, pageSize })` devuelve `{ items, total }`. Escapa `\ % _` y forma `%…%`. Una sola cláusula `WHERE @name IS NULL OR company_name_search LIKE @name ESCAPE '\' OR tax_id LIKE @taxId ESCAPE '\'`: `@taxId` nulo omite la rama. `total` sale de un `COUNT(*)`, y la página de `ORDER BY company_name_search, id LIMIT @limit OFFSET @offset`.
+  - Controller: lee `getValidated(res).query` y responde 200. Ruta: `GET /` = `validate({ query: searchCustomersQuerySchema })` → controller, en la misma ruta que `POST /`. El resto de métodos sigue dando 405.
+  - Limitación sin tratar: un `search` formado solo por marcas combinantes da una clave de nombre vacía y devuelve todos los clientes.
 
 ### T-21 · `POST /simulations/preview` y cálculo compartido [3–4 h]
 - **Objetivo:** schema de simulación, service `quote(input)` dentro de una transacción síncrona (cliente → tasa → `calculateQuote`) reutilizable por el guardado, y ruta de preview que responde 200 sin persistir.
