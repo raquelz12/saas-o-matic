@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.11)
+# SaaS-O-Matic — Plan de implementación (v.12)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -12,6 +12,7 @@
 - v.09 — Decisiones tomadas al implementar T-07 (05-review-log.md, R-101): tipo `TaxIdResult`; tabla de letras e iniciales como constantes internas; iniciales de CIF dan `INVALID_FORMAT` hasta T-08; filas de 3.6.7 y 3.6.8 sin CA nombradas `3.6.7: …` y `3.6.8: …`.
 - v.10 — Decisiones tomadas al implementar T-08 (05-review-log.md, R-102): CIF en `taxId.ts`, sin `cif.ts`; orden formato → forma exigida → valor; las 17 iniciales probadas; filas sin CA nombradas `3.6.7: …` y `3.6.8: …`.
 - v.11 — Decisiones tomadas al implementar T-09 (05-review-log.md, R-103): API de cada normalizador y validador; si fallan longitud y formato, gana la longitud; se normaliza antes de validar (un tabulador se colapsa); U+FEFF se trata como espacio; marcas combinantes con `\p{M}`; `toUpperCase` antes de comprobar el identificador.
+- v.12 — Decisiones tomadas al implementar T-10a y T-10b (05-review-log.md, R-104): versiones exactas de las dependencias (supertest 7.3.1, no 7.3.2); `backend/package.json` (script `dev` con `--env-file-if-exists`) y `package-lock.json` añadidos a sus archivos; test unitario del `errorHandler` en `backend/src/http/errorHandler.test.ts`; `DB_PATH` por defecto `./data/saas-o-matic.db`; mensajes `Resource not found` e `Internal server error`; CORS con `origin` como array.
 
 ## Contexto
 
@@ -36,7 +37,7 @@ Reglas comunes a todas las tareas:
 | T-02 | @types/react, @types/react-dom, @testing-library/dom | **Añadidas en T-02.** Implícitas: los tipos para el typecheck y @testing-library/dom como dependencia de pares obligatoria de @testing-library/react |
 | T-02 | @testing-library/user-event, @testing-library/jest-dom | **Opcionales. Decidido en T-02: no se instalan**; se usan `fireEvent` y las aserciones de Vitest. Se pueden reconsiderar en M4 |
 | T-03 | @types/node (24.x) en el backend | **Añadida en T-03.** Implícita: el test de lint usa `node:fs`, `node:path` e `import.meta.dirname`, y TypeScript 6 exige declararla en `types`. También la necesitarán T-10a y T-10b |
-| T-10b | express@5, cors, zod@4, supertest y sus @types | Stack |
+| T-10b | express@5, cors, zod@4, supertest y sus @types | Stack. **Instaladas en T-10a y T-10b (R-104), con versión exacta:** zod 4.6.7 (T-10a), express 5.3.0, cors 2.8.6, supertest 7.3.1, @types/express 5.0.6, @types/cors 2.8.19 y @types/supertest 7.2.1. supertest 7.3.1 y no 7.3.2, que solo tenía 8 días. Sin `dotenv`: Node 24 lee el `.env` con `--env-file-if-exists` |
 | T-11 | better-sqlite3 y @types/better-sqlite3 | Stack |
 | T-24a | react-router, @tanstack/react-query | Stack |
 | T-26 | big.js y @types/big.js | Spec RF-42 |
@@ -201,7 +202,7 @@ Reglas comunes a todas las tareas:
 - **Objetivo:** configuración validada con zod y valores por defecto, logger centralizado y `.env.example` del backend.
 - **Referencias:** RNF-02, RNF-03, architecture §1 (`config/`, `shared/`).
 - **Depende de:** T-03.
-- **Archivos:** `backend/src/config/env.ts`, `backend/src/config/env.test.ts`, `backend/src/shared/logger.ts` y `backend/.env.example`.
+- **Archivos:** `backend/src/config/env.ts`, `backend/src/config/env.test.ts`, `backend/src/shared/logger.ts` y `backend/.env.example`. **Añadidos en T-10a:** `backend/package.json` y `package-lock.json`, por la instalación de zod.
 - **Dependencias:** zod@4 (se instala aquí, aunque la tabla lo asocia a T-10b).
 - **Criterios:**
   - Sin variables, la config usa `PORT` 3000, `HOST` `127.0.0.1` y `CORS_ORIGIN` `http://localhost:5173`.
@@ -209,12 +210,18 @@ Reglas comunes a todas las tareas:
   - `.env.example` tiene `PORT`, `HOST`, `DB_PATH` y `CORS_ORIGIN`.
 - **Tests:** unitarios del schema de config.
 - **Fuera de alcance:** Express, errores HTTP y BD.
+- **Decisiones de T-10a (R-104):**
+  - `loadConfig(env = process.env): Config`, con `Config = { port, host, dbPath, corsOrigin }`. Si falla, lanza un único `Error` que nombra todas las variables no válidas.
+  - `PORT`: solo dígitos y entre 1 y 65535 (`abc`, `3000.5`, `-1`, `""`, `0` y `65536` se rechazan).
+  - `HOST` y `DB_PATH`: string no vacío. **`DB_PATH` por defecto `./data/saas-o-matic.db`**, relativo a `backend/` y cubierto por `*.db` en `.gitignore`.
+  - `CORS_ORIGIN`: `z.url()` con protocolo `http` o `https`. Se guarda tal cual, sin normalizarlo a origen.
+  - `logger` con `info`, `warn` y `error` sobre `console`, y una interfaz `Logger` para sustituirlo en los tests.
 
 ### T-10b · `createApp`, `server`, CORS, errores y 404 [3 h]
 - **Objetivo:** esqueleto ejecutable del backend: jerarquía `AppError`, `errorHandler` central con el formato 5.1, CORS, 404 de respaldo, `createApp(deps)` y `server.ts`.
 - **Referencias:** RF-30, RF-31, spec 5.1 (CORS y formato de error), ADR-002, architecture §5.
 - **Depende de:** T-10a.
-- **Archivos:** `backend/src/shared/errors.ts`, `backend/src/http/errorHandler.ts`, `backend/src/http/notFound.ts`, `backend/src/app.ts`, `backend/src/server.ts`, `backend/test/helpers/createTestApp.ts` (versión inicial) y `backend/test/api/app.test.ts`.
+- **Archivos:** `backend/src/shared/errors.ts`, `backend/src/http/errorHandler.ts`, `backend/src/http/notFound.ts`, `backend/src/app.ts`, `backend/src/server.ts`, `backend/test/helpers/createTestApp.ts` (versión inicial) y `backend/test/api/app.test.ts`. **Añadidos en T-10b:** `backend/src/http/errorHandler.test.ts` (el test unitario que pide la ficha), y `backend/package.json` y `package-lock.json` (dependencias y script `dev`).
 - **Criterios:**
   - CA-87: `GET /api/inexistente` → 404 `NOT_FOUND`.
   - CA-88: formato `{ error: { code, message, details } }`.
@@ -223,6 +230,14 @@ Reglas comunes a todas las tareas:
   - Una petición con `Origin` igual a `CORS_ORIGIN` recibe `Access-Control-Allow-Origin`; otro origen no (R-91).
 - **Tests:** API (Supertest) sobre CA-87, CA-88, el preflight y CORS; test unitario del `errorHandler`.
 - **Fuera de alcance:** BD, body JSON, 415/413/400, 405, validación y `shared/pagination.ts` (pasa a T-15).
+- **Decisiones de T-10b (R-104):**
+  - `AppError { status, code, message, details }` y `NotFoundError`. El resto de subclases llegan con su tarea.
+  - Mensajes: `Resource not found` (404) e `Internal server error` (500), en inglés como el `Request validation failed` de la spec 5.1.
+  - `createErrorHandler(logger)`: un `AppError` se serializa tal cual; cualquier otro valor lanzado (también uno que no es `Error`) da 500 y va a `logger.error`. Si las cabeceras ya se enviaron, delega en Express.
+  - `createApp({ config, logger })`, con `config: Pick<Config, 'corsOrigin'>`. Orden: `cors` → rutas → `notFound` → `errorHandler`.
+  - **CORS con `origin: [corsOrigin]`:** con un string, `cors` envía `Access-Control-Allow-Origin` a cualquier origen y no se cumpliría el criterio de R-91.
+  - `createTestApp(overrides?)` usa `loadConfig({})` y un `silentLogger`.
+  - Script `dev` del backend: `node --watch --env-file-if-exists=.env src/server.ts`, sin `dotenv`. `npm run dev` arranca ya los dos workspaces.
 
 ### T-11 · Conexión SQLite y runner de migraciones [2–3 h]
 - **Objetivo:** conexión con `PRAGMA foreign_keys = ON` y runner de migraciones numeradas e idempotentes, con el script `db:migrate`.
