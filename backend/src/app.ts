@@ -13,6 +13,10 @@ import { createCustomersRepository } from './modules/customers/customers.reposit
 import { createCustomersRouter } from './modules/customers/customers.routes.ts';
 import { createCustomersService } from './modules/customers/customers.service.ts';
 import { createSimulationsController } from './modules/simulations/simulations.controller.ts';
+import {
+  createSimulationsRepository,
+  type SimulationsRepository,
+} from './modules/simulations/simulations.repository.ts';
 import { createSimulationsRouter } from './modules/simulations/simulations.routes.ts';
 import { createSimulationsService } from './modules/simulations/simulations.service.ts';
 import type { Logger } from './shared/logger.ts';
@@ -23,10 +27,12 @@ export interface AppDeps {
   logger: Logger;
   /** Conexión ya migrada y con el seed de tasas (`prepareDatabase`). */
   db: Db;
+  /** Sustituto del repositorio de simulaciones; por defecto, el de `db` (CA-89). */
+  simulationsRepo?: SimulationsRepository;
 }
 
 /** Único punto de composición del backend (architecture §2). */
-export function createApp({ config, logger, db }: AppDeps): Express {
+export function createApp({ config, logger, db, simulationsRepo }: AppDeps): Express {
   const app = express();
 
   // Primero, para que el preflight responda 204 antes que cualquier 404 o 405 (spec 5.1).
@@ -50,6 +56,7 @@ export function createApp({ config, logger, db }: AppDeps): Express {
   const simulationsService = createSimulationsService({
     customersRepo,
     taxRatesRepo,
+    simulationsRepo: simulationsRepo ?? createSimulationsRepository(db),
     // El service no importa better-sqlite3: recibe la transacción ya construida (architecture §4).
     runInTransaction: (fn) => db.transaction(fn)(),
   });

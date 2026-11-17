@@ -17,6 +17,13 @@ export function postPreview(app: Express, body: unknown = simulationBody()) {
     .send(body as object);
 }
 
+/** `POST /api/simulations` con `Content-Type: application/json`. */
+export function postSimulation(app: Express, body: unknown = simulationBody()) {
+  return request(app)
+    .post('/api/simulations')
+    .send(body as object);
+}
+
 /**
  * Da de alta un cliente del país indicado y devuelve su `id`. Fuera de ES el
  * identificador solo pasa el formato genérico; en ES, `taxId` debe ser válido (spec 3.6).
