@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.17)
+# SaaS-O-Matic — Plan de implementación (v.18)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -18,6 +18,7 @@
 - v.15 — Decisiones tomadas al implementar T-13 (05-review-log.md, R-107): `receiveJson` montado por ruta; `Content-Type` analizado a mano, solo con `charset=utf-8`; body vacío detectado con `verify`; 405 sin `Allow`; subclases de `AppError` en `shared/errors.ts`; punto «body vacío» de architecture verificado.
 - v.16 — Decisiones tomadas al implementar T-14 (05-review-log.md, R-108): `REQUIRED` decidido por el valor de entrada, no por el código de zod; un issue por campo; códigos sin regla → `INVALID_FORMAT`; `details` en orden `params` → `query` → `body`; salida en `res.locals.validated` con `getValidated`; `ValidationError` en `shared/errors.ts`; tres puntos de zod 4 y Express 5 de architecture verificados.
 - v.17 — Decisiones tomadas al implementar T-15 (05-review-log.md, R-109): `INVALID_FORMAT` para `page`/`pageSize` sin formato y `OUT_OF_RANGE` por encima del máximo; constantes de paginación en `shared/pagination.ts`; exports de `commonSchemas.ts`, con `paginationQueryFields` para T-20.
+- v.18 — Decisiones tomadas al implementar T-16 (05-review-log.md, R-110): `AppDeps` recibe `db`; `server.ts` y `createTestApp.ts` añadidos a sus archivos (`createTestApp` usa `createTestDb()` por defecto); módulo `countries` con fábricas; `getRateBp` devuelve `undefined` con un código inexistente; test sin caché de `tax_rates`.
 
 ## Contexto
 
@@ -356,10 +357,16 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Objetivo:** módulo `countries` completo (repository, service, controller y routes) con `listCountries`, `getRateBp(code)` y `listCodes()`, que reutilizarán T-17 y T-21.
 - **Referencias:** RF-08, RF-17, RF-32, spec 5.7.
 - **Depende de:** T-12, T-15.
-- **Archivos:** `backend/src/modules/countries/*` (4 archivos), `app.ts` y `backend/test/api/countries.test.ts`.
+- **Archivos:** `backend/src/modules/countries/*` (4 archivos), `app.ts`, `server.ts`, `backend/test/helpers/createTestApp.ts` y `backend/test/api/countries.test.ts`.
 - **Criterios:** CA-82; `?foo=1` → 422 `UNKNOWN_FIELD` (test sin CA; CA-77 va en T-20); `POST /countries` → 405.
 - **Tests:** API.
 - **Fuera de alcance:** nombres de país (los pone el frontend con `Intl.DisplayNames`).
+- **Decisiones de T-16 (R-110):**
+  - `AppDeps` recibe `db: Db`; `server.ts` le pasa la conexión de `prepareDatabase`. `createTestApp()` usa `createTestDb()` si no recibe `db`, y sigue devolviendo `Express`: el test que necesita la BD la crea y la pasa con `createTestApp({ db })`.
+  - Fábricas sin clases: `createTaxRatesRepository(db)` (interfaz `TaxRatesRepository`), `createCountriesService`, `createCountriesController` y `createCountriesRouter`.
+  - `listCountries()` y `listCodes()` ordenan por `code`; `getRateBp(code)` devuelve `undefined` si el código no existe (qué hacer en ese caso lo decide T-21). Sin caché: cada llamada lee `tax_rates`.
+  - Las sustituciones de repositorios en `createApp` (CA-89) quedan para T-22.
+  - Test extra sin CA: un cambio en `tax_rates` se ve en la petición siguiente.
 
 ### T-17 · Schema de alta de cliente [3–4 h]
 - **Objetivo:** `buildCreateCustomerSchema(paísesSoportados)`, que encadena por campo normalización → formato → (checksum si `ES`), corta en el primer fallo de cada campo y ejecuta el checksum aunque fallen otros campos.
