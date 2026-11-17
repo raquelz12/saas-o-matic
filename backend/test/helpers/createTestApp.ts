@@ -13,17 +13,19 @@ export const silentLogger: Logger = {
 };
 
 /**
- * App de prueba con la config por defecto y el logger silencioso.
- * Cualquier dependencia de `createApp` se puede sustituir (architecture §6).
+ * App de prueba con la config por defecto, el logger silencioso y una BD nueva
+ * de `createTestDb()`. Cualquier dependencia de `createApp` se puede sustituir
+ * (architecture §6); para leer o editar la BD en el test, se crea y se pasa con `{ db }`.
  */
 export function createTestApp(overrides: Partial<AppDeps> = {}): Express {
-  return createApp({ config: loadConfig({}), logger: silentLogger, ...overrides });
+  const { db = createTestDb(), ...rest } = overrides;
+  return createApp({ config: loadConfig({}), logger: silentLogger, db, ...rest });
 }
 
 /**
  * BD de prueba en `:memory:`, aislada en cada llamada, con `foreign_keys` activado,
  * las migraciones aplicadas y el seed de tasas (nunca el seed demo; architecture §6).
- * Va aparte de la app: `createApp` aún no recibe `db` (llegará con los repositorios).
+ * Va aparte de la app para que el test conserve la conexión (R-105, T-16).
  */
 export function createTestDb(): Db {
   return prepareDatabase(':memory:');
