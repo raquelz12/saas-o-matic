@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.14)
+# SaaS-O-Matic — Plan de implementación (v.15)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -15,6 +15,7 @@
 - v.12 — Decisiones tomadas al implementar T-10a y T-10b (05-review-log.md, R-104): versiones exactas de las dependencias (supertest 7.3.1, no 7.3.2); `backend/package.json` (script `dev` con `--env-file-if-exists`) y `package-lock.json` añadidos a sus archivos; test unitario del `errorHandler` en `backend/src/http/errorHandler.test.ts`; `DB_PATH` por defecto `./data/saas-o-matic.db`; mensajes `Resource not found` e `Internal server error`; CORS con `origin` como array.
 - v.13 — Decisiones tomadas al implementar T-11 (05-review-log.md, R-105): better-sqlite3 13.0.3 y @types/better-sqlite3 9.6.0; `createTestDb()` aparte de `createTestApp()`; tabla `schema_migrations`; orden numérico y número duplicado como error; una transacción por migración; `db:migrate` falla si no existe `backend/migrations/`; script `db:migrate` también en el `package.json` raíz.
 - v.14 — Decisiones tomadas al implementar T-12 (05-review-log.md, R-106): `prepareDatabase()` para el arranque y `createTestDb()`; `seedTaxRates` con `INSERT OR IGNORE`; `db:seed` no migra; `migrate.test.ts` con BD vacía; tests de esquema en dos archivos y un módulo de filas; script `db:seed` también en la raíz.
+- v.15 — Decisiones tomadas al implementar T-13 (05-review-log.md, R-107): `receiveJson` montado por ruta; `Content-Type` analizado a mano, solo con `charset=utf-8`; body vacío detectado con `verify`; 405 sin `Allow`; subclases de `AppError` en `shared/errors.ts`; punto «body vacío» de architecture verificado.
 
 ## Contexto
 
@@ -289,13 +290,20 @@ Reglas comunes a todas las tareas:
 - **Objetivo:** middlewares transversales de Content-Type, `express.json` (10 kB, `strict: false`) con detección de body vacío, mapeo de los errores de body-parser y helper `.all()` para el 405.
 - **Referencias:** spec 3.1 (paso 1), 5.1, RF-31.
 - **Depende de:** T-10b.
-- **Archivos:** `backend/src/http/contentType.ts`, `backend/src/http/jsonBody.ts`, `backend/src/http/methodNotAllowed.ts`, `errorHandler.ts` (mapear `entity.parse.failed` y `entity.too.large`) y `backend/test/http/reception.test.ts`.
+- **Archivos:** `backend/src/http/contentType.ts`, `backend/src/http/jsonBody.ts`, `backend/src/http/methodNotAllowed.ts`, `errorHandler.ts` (mapear `entity.parse.failed` y `entity.too.large`) y `backend/test/http/reception.test.ts`. **Añadidos en T-13 (R-107):** `backend/src/shared/errors.ts` (subclases de `AppError`) y `architecture.md` (*Pendiente de verificar*).
 - **Criterios:**
   - Sobre un router de prueba: JSON inválido → 400, body vacío → 400, `text/plain` → 415, body de más de 10 kB → 413, método no soportado → 405 `METHOD_NOT_ALLOWED`.
   - `application/json; charset=UTF-8` aceptado.
   - Queda fijado el punto «body vacío» de *Pendiente de verificar*.
 - **Tests:** Supertest sobre una app mínima, sin CA (los CA-83 a CA-86 van en T-18 y T-19, R-86).
 - **Fuera de alcance:** validación con zod y rutas reales.
+- **Decisiones de T-13 (R-107):**
+  - `requireJson` (`contentType.ts`) analiza la cabecera a mano, sin `req.is()`, que devuelve `null` cuando no hay body. Acepta `application/json` sin distinguir mayúsculas, sin parámetros o solo con `charset=utf-8`. Cualquier otro tipo, charset o parámetro, o la falta de cabecera → 415.
+  - `jsonBody` = `express.json({ limit: 10kb, strict: false })` más la detección del body vacío. body-parser 2.4.0 convierte un body vacío en `{}`, así que un `verify` marca las peticiones que traen bytes; sin marca → 400 `MALFORMED_JSON`. Un body de solo espacios ya da 400 al parsear.
+  - `receiveJson = [requireJson, ...jsonBody]` se monta en cada ruta POST (`.post(...receiveJson, handler)`), no en `app.ts`. Así un POST a una ruta inexistente da 404 y uno a una ruta solo GET da 405.
+  - `methodNotAllowed` va con `router.route(...).all(methodNotAllowed)`. Sin cabecera `Allow`, porque la spec no la pide.
+  - El `errorHandler` traduce `entity.parse.failed` → 400 y `entity.too.large` → 413. El resto de errores de body-parser (que `requireJson` evita) siguen dando 500.
+  - Subclases `MalformedJsonError`, `PayloadTooLargeError`, `UnsupportedMediaTypeError` y `MethodNotAllowedError` en `shared/errors.ts`, con los mensajes `Malformed JSON`, `Payload too large`, `Unsupported media type` y `Method not allowed`.
 
 ### T-14 · Middleware `validate` y traductor de issues de zod [4 h]
 - **Objetivo:** `validate({ body?, query?, params? })` con fábricas de schema, acumulación de errores en un solo 422, salida validada en `res.locals` y traducción de issues de zod 4 al catálogo 3.2.
