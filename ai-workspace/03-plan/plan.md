@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.22)
+# SaaS-O-Matic — Plan de implementación (v.23)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -23,6 +23,7 @@
 - v.20 — Decisiones tomadas al implementar T-18 (05-review-log.md, R-112): `DuplicateError` en `shared/errors.ts` (añadido a sus archivos); el service calcula `company_name_search` con `searchKey`; el repositorio traduce `SQLITE_CONSTRAINT_UNIQUE` sin SELECT previo; los países llegan a la ruta como función desde `app.ts`; `plan: string` en la entidad; `GET /customers` da 405 hasta T-20.
 - v.21 — Decisiones tomadas al implementar T-19 (05-review-log.md, R-113): `findById` devuelve `undefined` y el `NotFoundError` lo lanza el service; 404 con el mensaje genérico `Resource not found`; `/:id` valida `params` y `query` y da 405 al resto de métodos, incluido `POST`.
 - v.22 — Decisiones tomadas al implementar T-20 (05-review-log.md, R-114): `search` medido en code points tras el trim; claves de RB-13 calculadas en el service y rama de identificador omitida si normaliza a vacío; escapado de LIKE y `@taxId` nulo en el repositorio; `total` con `COUNT(*)` aparte.
+- v.23 — Decisiones tomadas al implementar T-21 (05-review-log.md, R-115): tasa inexistente → 500; `runInTransaction` inyectado desde `app.ts`; `quote` interna reutilizable por T-22; máximo de `customerId` como constante local; tests en dos archivos con el helper `simulationFactory.ts` (añadidos a sus archivos); CA-12 con un único servidor y `fetch`.
 
 ## Contexto
 
@@ -447,7 +448,7 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Objetivo:** schema de simulación, service `quote(input)` dentro de una transacción síncrona (cliente → tasa → `calculateQuote`) reutilizable por el guardado, y ruta de preview que responde 200 sin persistir.
 - **Referencias:** RF-19 a RF-24 (cálculo), RF-26, RB-04, RB-06, RB-10, spec 3.4, 5.9, architecture §4, ADR-004.
 - **Depende de:** T-06, T-16, T-19 (`findById`, R-80).
-- **Archivos:** en `backend/src/modules/simulations/`: `simulations.schemas.ts`, `simulations.service.ts`, `simulations.controller.ts`, `simulations.routes.ts`. Además, `app.ts` y `backend/test/api/simulations.preview.test.ts`.
+- **Archivos:** en `backend/src/modules/simulations/`: `simulations.schemas.ts`, `simulations.service.ts`, `simulations.controller.ts`, `simulations.routes.ts`. Además, `app.ts` y `backend/test/api/simulations.preview.test.ts`. **Añadido en T-21 (R-115):** `backend/test/api/simulations.preview.validation.test.ts` y `backend/test/helpers/simulationFactory.ts`.
 - **Criterios:**
   - CA-01 a CA-18 (CA-18 cambiando la tasa con `db` desde `createTestApp`).
   - CA-20, CA-24 (en el preview) y CA-28 a CA-37.
@@ -455,6 +456,14 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
   - `?foo=1` → 422 y `GET /simulations/preview` → 405 (R-88).
 - **Tests:** API.
 - **Fuera de alcance:** persistencia, historial y CA-19.
+- **Decisiones de T-21 (R-115):**
+  - Schema: `simulationSchema` = `z.strictObject` con `z.int().min().max()` por campo (tabla 3.4), sin cambios en `zodIssues.ts`. El máximo de `customerId` es una constante local, no el `MAX_ID` de `commonSchemas.ts`. Exporta el tipo `SimulationInput`.
+  - Service: `createSimulationsService({ customersRepo, taxRatesRepo, runInTransaction })`, con `Pick` de las interfaces de los dos repositorios. `preview(input)` ejecuta la función interna `quote` dentro de `runInTransaction`: `findById` (si no existe, `NotFoundError`) → `getRateBp(customer.country)` → `calculateQuote`. T-22 reutilizará `quote` en la misma transacción que el `insert`. Tipos propios `SimulationRequest` y `SimulationQuote`, sin zod.
+  - Tasa inexistente: la FK `customers.country_code → tax_rates` lo impide, así que es un bug → `Error` normal (500), sin código nuevo.
+  - `app.ts` construye `runInTransaction = (fn) => db.transaction(fn)()`: el service no importa better-sqlite3. El controller añade `currency: 'EUR'` y responde 200.
+  - Ruta: `POST /preview` = `receiveJson` → `validate({ query: emptyQuerySchema, body: simulationSchema })` → controller, más `.all(methodNotAllowed)`. `/api/simulations` sin `/preview` sigue dando 404 hasta T-22.
+  - Tests en dos archivos para no superar `max-lines`, con el helper `simulationFactory.ts` (`simulationBody`, `postPreview`, `createCustomerId`), que T-22 puede reutilizar.
+  - CA-12 recorre `u` de 1 a 1000 contra un único servidor con `fetch` (conexiones keep-alive). Con supertest, una conexión por petición agotaba los puertos efímeros en Windows (`ENOBUFS`) al correr junto a las demás suites.
 
 ### T-22 · `POST /simulations` [2–3 h]
 - **Objetivo:** repositorio de simulaciones (`insert` con `tiers_json` y `RETURNING`, mapeo de fila a entidad) y ruta que reutiliza `quote` y responde 201 sin `Location`.

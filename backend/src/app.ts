@@ -12,6 +12,9 @@ import { createCustomersController } from './modules/customers/customers.control
 import { createCustomersRepository } from './modules/customers/customers.repository.ts';
 import { createCustomersRouter } from './modules/customers/customers.routes.ts';
 import { createCustomersService } from './modules/customers/customers.service.ts';
+import { createSimulationsController } from './modules/simulations/simulations.controller.ts';
+import { createSimulationsRouter } from './modules/simulations/simulations.routes.ts';
+import { createSimulationsService } from './modules/simulations/simulations.service.ts';
 import type { Logger } from './shared/logger.ts';
 
 /** Dependencias sustituibles de la aplicación (architecture §1, ADR-002). */
@@ -35,12 +38,24 @@ export function createApp({ config, logger, db }: AppDeps): Express {
   const countriesService = createCountriesService(taxRatesRepo);
   app.use('/api/countries', createCountriesRouter(createCountriesController(countriesService)));
 
-  const customersService = createCustomersService(createCustomersRepository(db));
+  const customersRepo = createCustomersRepository(db);
+  const customersService = createCustomersService(customersRepo);
   app.use(
     '/api/customers',
     createCustomersRouter(createCustomersController(customersService), () =>
       taxRatesRepo.listCodes(),
     ),
+  );
+
+  const simulationsService = createSimulationsService({
+    customersRepo,
+    taxRatesRepo,
+    // El service no importa better-sqlite3: recibe la transacción ya construida (architecture §4).
+    runInTransaction: (fn) => db.transaction(fn)(),
+  });
+  app.use(
+    '/api/simulations',
+    createSimulationsRouter(createSimulationsController(simulationsService)),
   );
 
   app.use(notFound);
