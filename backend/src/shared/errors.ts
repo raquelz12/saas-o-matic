@@ -59,6 +59,17 @@ export class ValidationError extends AppError {
   }
 }
 
+/**
+ * Violación de una restricción `UNIQUE` → 409 `DUPLICATE`, asociado al campo que la
+ * causa para que el frontend lo pinte junto a él (spec 5.3, RF-36).
+ */
+export class DuplicateError extends AppError {
+  constructor(field: string) {
+    super(409, 'DUPLICATE', 'Resource already exists', [{ field, issue: 'DUPLICATE' }]);
+    this.name = 'DuplicateError';
+  }
+}
+
 /** Ruta existente con un método no soportado → 405 `METHOD_NOT_ALLOWED` (spec 5.1). */
 export class MethodNotAllowedError extends AppError {
   constructor() {

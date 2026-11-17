@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.19)
+# SaaS-O-Matic — Plan de implementación (v.20)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -20,6 +20,7 @@
 - v.17 — Decisiones tomadas al implementar T-15 (05-review-log.md, R-109): `INVALID_FORMAT` para `page`/`pageSize` sin formato y `OUT_OF_RANGE` por encima del máximo; constantes de paginación en `shared/pagination.ts`; exports de `commonSchemas.ts`, con `paginationQueryFields` para T-20.
 - v.18 — Decisiones tomadas al implementar T-16 (05-review-log.md, R-110): `AppDeps` recibe `db`; `server.ts` y `createTestApp.ts` añadidos a sus archivos (`createTestApp` usa `createTestDb()` por defecto); módulo `countries` con fábricas; `getRateBp` devuelve `undefined` con un código inexistente; test sin caché de `tax_rates`.
 - v.19 — Decisiones tomadas al implementar T-17 (05-review-log.md, R-111): `details` en el orden en que zod emite los issues, con el checksum al final (distinto del ejemplo de 5.3); checksum como `superRefine` del objeto con `when`; `country` con refine en vez de `z.enum`; exports `buildCreateCustomerSchema`, `PLANS` y `CreateCustomerInput`.
+- v.20 — Decisiones tomadas al implementar T-18 (05-review-log.md, R-112): `DuplicateError` en `shared/errors.ts` (añadido a sus archivos); el service calcula `company_name_search` con `searchKey`; el repositorio traduce `SQLITE_CONSTRAINT_UNIQUE` sin SELECT previo; los países llegan a la ruta como función desde `app.ts`; `plan: string` en la entidad; `GET /customers` da 405 hasta T-20.
 
 ## Contexto
 
@@ -391,7 +392,7 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Objetivo:** persistir el cliente con `company_name_search`, traducir `SQLITE_CONSTRAINT_UNIQUE` en `DuplicateError` (409 `taxId`/`DUPLICATE`), responder 201 con `Location`, y montar la ruta con 415, 400, 413 y 405.
 - **Referencias:** RF-01 a RF-10, RB-12, spec 3.3, 4.4, 5.3, architecture §5 (409 sin SELECT previo).
 - **Depende de:** T-17.
-- **Archivos:** en `backend/src/modules/customers/`: `customers.repository.ts`, `customers.service.ts`, `customers.controller.ts`, `customers.routes.ts`. Además, `app.ts`, `backend/test/helpers/customerFactory.ts`, `backend/test/api/customers.create.test.ts` y `backend/test/api/customers.taxid.test.ts`.
+- **Archivos:** en `backend/src/modules/customers/`: `customers.repository.ts`, `customers.service.ts`, `customers.controller.ts`, `customers.routes.ts`. Además, `app.ts`, `backend/test/helpers/customerFactory.ts`, `backend/test/api/customers.create.test.ts` y `backend/test/api/customers.taxid.test.ts`. **Añadido en T-18 (R-112):** `backend/src/shared/errors.ts` (`DuplicateError`).
 - **Criterios:**
   - Alta y normalización: CA-38 a CA-49.
   - Identificador fiscal: CA-50 a CA-68 y CA-110.
@@ -399,6 +400,16 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
   - `?foo=1` → 422 y `PUT /customers` → 405 (R-88).
 - **Tests:** API.
 - **Fuera de alcance:** GET de clientes y seed demo.
+- **Decisiones de T-18 (R-112):**
+  - `DuplicateError(field)` en `shared/errors.ts`: 409 `DUPLICATE`, mensaje `Resource already exists`, `details: [{ field, issue: 'DUPLICATE' }]`.
+  - Repositorio: `createCustomersRepository(db)` con `insert(draft)`, un `INSERT … RETURNING` con parámetros con nombre. Un `SqliteError` con `code` `SQLITE_CONSTRAINT_UNIQUE` → `DuplicateError('taxId')`, sin SELECT previo: la única `UNIQUE` de la tabla es `(country_code, tax_id)`. El resto de errores de BD se propagan (500). Exporta `Customer` (recurso de 5.2, sin `company_name_search`) y `CustomerDraft`.
+  - `plan` es `string` en la entidad: el repositorio no puede importar `PLANS` de `schemas`, y el CHECK de la tabla garantiza el valor.
+  - Service: `createCustomersService(repo)` con `create(input)`, que calcula `companyNameSearch = searchKey(companyName)`. Define su propio tipo de entrada, `NewCustomer`, para no depender de zod; `CreateCustomerInput` es compatible.
+  - Controller: lee `getValidated<NewCustomer>(res).body` y responde 201 con el `Customer` y `Location: /api/customers/{id}`.
+  - Ruta: `createCustomersRouter(controller, supportedCountries)`. `supportedCountries` es una función que `app.ts` construye con `taxRatesRepo.listCodes()`, porque las rutas no pueden importar repositorios; se evalúa en cada petición dentro de la fábrica del schema. `POST /` monta `receiveJson` → `validate({ query: emptyQuerySchema, body })` → controller, y después `.all(methodNotAllowed)`.
+  - Hasta T-20, `GET /api/customers` responde 405; T-20 añade el GET en la misma ruta.
+  - Helper `customerFactory.ts`: `customerBody(overrides)`, `customerBodyWithout(field)` y `postCustomer(app, body)`.
+  - Además de los CA, tests sin CA de: `Location`, `company_name_search` guardado y no expuesto, países leídos en cada petición, 413, body que no es objeto y campo desconocido. CA-110 compara `details` sin depender del orden (R-111).
 
 ### T-19 · `GET /customers/:id` [1–2 h]
 - **Objetivo:** detalle de cliente con 404 y 422, y 405 para el resto de métodos sobre `/customers/:id`.

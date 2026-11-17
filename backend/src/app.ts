@@ -8,6 +8,10 @@ import { createCountriesController } from './modules/countries/countries.control
 import { createTaxRatesRepository } from './modules/countries/countries.repository.ts';
 import { createCountriesRouter } from './modules/countries/countries.routes.ts';
 import { createCountriesService } from './modules/countries/countries.service.ts';
+import { createCustomersController } from './modules/customers/customers.controller.ts';
+import { createCustomersRepository } from './modules/customers/customers.repository.ts';
+import { createCustomersRouter } from './modules/customers/customers.routes.ts';
+import { createCustomersService } from './modules/customers/customers.service.ts';
 import type { Logger } from './shared/logger.ts';
 
 /** Dependencias sustituibles de la aplicación (architecture §1, ADR-002). */
@@ -30,6 +34,14 @@ export function createApp({ config, logger, db }: AppDeps): Express {
   const taxRatesRepo = createTaxRatesRepository(db);
   const countriesService = createCountriesService(taxRatesRepo);
   app.use('/api/countries', createCountriesRouter(createCountriesController(countriesService)));
+
+  const customersService = createCustomersService(createCustomersRepository(db));
+  app.use(
+    '/api/customers',
+    createCustomersRouter(createCustomersController(customersService), () =>
+      taxRatesRepo.listCodes(),
+    ),
+  );
 
   app.use(notFound);
   app.use(createErrorHandler(logger));
