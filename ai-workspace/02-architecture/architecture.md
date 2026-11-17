@@ -185,7 +185,7 @@ No está contrastado contra documentación el comportamiento exacto de Express 5
 | Punto | Test que lo fija |
 |---|---|
 | Código de issue de zod 4 para un decimal en un campo entero | CA-29 |
-| Body vacío con `express.json` | CA-84 |
+| Body vacío con `express.json` | **Verificado en T-13 (R-107):** body-parser 2.4.0 lo convierte en `{}` sin error; `jsonBody` lo detecta con `verify` y responde 400. Lo comprobará también CA-84 en la ruta real |
 | Parser de query y parámetros no enteros | CA-75 |
 | Parámetro repetido y forma `search[]=` con el parser `simple` | CA-109 |
 | Checksum ejecutado aunque fallen otros campos | CA-110 |

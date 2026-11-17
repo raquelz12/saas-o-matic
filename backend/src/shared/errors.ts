@@ -26,3 +26,35 @@ export class NotFoundError extends AppError {
     this.name = 'NotFoundError';
   }
 }
+
+/** JSON inválido o body vacío en un POST → 400 `MALFORMED_JSON` (spec 3.1, paso 1). */
+export class MalformedJsonError extends AppError {
+  constructor() {
+    super(400, 'MALFORMED_JSON', 'Malformed JSON');
+    this.name = 'MalformedJsonError';
+  }
+}
+
+/** Body de más de 10 kB → 413 `PAYLOAD_TOO_LARGE` (spec 5.1). */
+export class PayloadTooLargeError extends AppError {
+  constructor() {
+    super(413, 'PAYLOAD_TOO_LARGE', 'Payload too large');
+    this.name = 'PayloadTooLargeError';
+  }
+}
+
+/** POST con un `Content-Type` distinto de `application/json` → 415 (spec 5.1). */
+export class UnsupportedMediaTypeError extends AppError {
+  constructor() {
+    super(415, 'UNSUPPORTED_MEDIA_TYPE', 'Unsupported media type');
+    this.name = 'UnsupportedMediaTypeError';
+  }
+}
+
+/** Ruta existente con un método no soportado → 405 `METHOD_NOT_ALLOWED` (spec 5.1). */
+export class MethodNotAllowedError extends AppError {
+  constructor() {
+    super(405, 'METHOD_NOT_ALLOWED', 'Method not allowed');
+    this.name = 'MethodNotAllowedError';
+  }
+}
