@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.31)
+# SaaS-O-Matic — Plan de implementación (v.32)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -32,6 +32,7 @@
 - v.29 — Decisiones tomadas al implementar T-27 (05-review-log.md, R-122): zod 4.6.7 en el frontend; `frontend/package.json` y `package-lock.json` añadidos a sus archivos; schema que exige además `time_next_update_unix` y `time_last_update_utc`; `FxError` propio y `TimeoutError` nativo; `VITE_FX_URL` por defecto el de `.env.example`; `refetchInterval` hasta `time_next_update_unix`, sin reintento automático tras un refresco fallido (opción A, decisión del usuario); query key propia en la feature; en el test del hook, `notifyManager.setScheduler(queueMicrotask)` y `QueryClient` propio.
 - v.30 — Decisiones tomadas al implementar T-28 y T-28b (05-review-log.md, R-123 y R-124): `main.tsx` y `router.test.tsx` añadidos a los archivos de T-28; `CurrencyProvider` en `main.tsx`; enlace `Rates By Exchange Rate API` en el pie; fecha «Tipos del {fecha}» junto al selector con `dateStyle: 'medium'` y `timeStyle: 'short'`; sin aviso si falla el refresco con caché; el contexto expone el tipo efectivo (`rate`); importes en EUR mientras cargan los tipos; proveedor simulado = `CurrencyProvider` real con `fetch` simulado.
 - v.31 — Decisiones tomadas al implementar T-29a y T-29b (05-review-log.md, R-125 y R-126): la página vuelve a 1 cuando cambia el texto debounced, no en cada tecla; `pageSize` no se envía; el plan se pinta con su código; `maxLength` de 100 en el buscador; un único texto de estado vacío; `customers.module.css` como CSS compartido; `Layout.test.tsx` añadido a los archivos de T-29b.
+- v.32 — Decisiones tomadas al implementar T-30 (05-review-log.md, R-127): `customerFormErrors.ts` añadido a sus archivos; en el cliente, el identificador fiscal solo comprueba el mínimo de 5 tras trim y colapso, y el máximo lo decide el backend; tabla de textos por issue; aviso general para los errores sin campo; validación al enviar y error que se quita al editar; países ordenados por nombre; se invalida `customers.all`.
 
 ## Contexto
 
@@ -692,6 +693,27 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
   - Tras un 201, navega al detalle del cliente creado (`/customers/{id}`) e invalida la búsqueda de clientes (decisión 1).
 - **Tests:** componente con `fetch` simulado.
 - **Fuera de alcance:** el contenido del detalle (T-31a).
+- **Decisiones de T-30 (R-127):**
+  - Archivos: se añade `customerFormErrors.ts` (validación local, textos por issue y reparto de `details[]`), para que `NewCustomerForm.tsx` no pase de ~200 líneas. `countryName` se reutiliza de `CustomerCard.tsx`.
+  - La validación local se hace al enviar; si falla, no hay petición. Se mide en code points tras trim y colapso de `\s` Unicode: `companyName` entre 2 y 100 y `email` hasta 254. En `taxId` solo se comprueba el mínimo de 5: el backend quita además los espacios, `-` y `.` antes de medir, y un máximo en el cliente rechazaría valores válidos. El máximo lo decide el backend (opción 1a, decisión del usuario). `country` y `plan` solo son obligatorios. Los valores se envían tal cual, sin normalizar, y el algoritmo del identificador no se ejecuta en el cliente.
+  - Textos por issue (decisión del usuario):
+    - `REQUIRED`: «Este campo es obligatorio.»
+    - `INVALID_LENGTH`, según el campo: «Debe tener entre 2 y 100 caracteres.», «Debe tener entre 5 y 20 caracteres.» o «Debe tener como máximo 254 caracteres.»
+    - `INVALID_FORMAT`: «El formato no es válido.»
+    - `INVALID_CHECKSUM`: «El identificador fiscal no es válido.»
+    - `UNSUPPORTED_VALUE`: «Valor no admitido.»
+    - `DUPLICATE`: «Ya existe un cliente con este identificador fiscal en este país.»
+    - Cualquier otro: «Valor no válido.»
+  - Los `details[]` se muestran junto a su campo, enlazados con `aria-describedby` y `aria-invalid`. El error de un campo se quita al editarlo. Un error que no es de un campo del formulario (500, red, 400 o `field` desconocido) muestra el aviso general «No se ha podido crear el cliente. Inténtalo de nuevo.» y conserva los valores (decisión del usuario).
+  - País y plan son `<select>` que empiezan en una opción vacía. Los países se ordenan por su nombre en `es-ES`. Mientras cargan, el select de país está deshabilitado; si fallan, aparece `ErrorState` con «Reintentar» (`refetch`). Los planes están en `plans.ts` como `PLANS` y `PLAN_LABELS` (`Starter`, `Business`, `Enterprise`).
+  - El botón «Crear cliente» se deshabilita con `isPending` y muestra «Creando…». Tras un 201, `useCreateCustomer` invalida `queryKeys.customers.all` y navega a `/customers/{id}`.
+  - Tests: `NewCustomer.test.tsx` cubre CA-94, CA-95 y CA-96. Los tests descriptivos, sin CA, cubren:
+    - los obligatorios y el error que se quita al editar;
+    - las longitudes tras trim y colapso, con el máximo del identificador en el backend;
+    - la navegación y la invalidación tras el 201;
+    - el botón deshabilitado durante el envío;
+    - el aviso general;
+    - el error de los países con reintento.
 
 ### T-31a · Detalle del cliente: tarjeta de datos [2–3 h]
 - **Objetivo:** `useCustomer`, tarjeta responsive con los datos del cliente y página de detalle con sus estados.
