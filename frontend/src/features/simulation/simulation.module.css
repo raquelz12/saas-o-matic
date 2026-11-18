@@ -1,0 +1,93 @@
+/* Historial de simulaciones y desglose por tramos (RF-35). Sin scroll horizontal a 360 px (CA-91). */
+.history {
+  margin-top: var(--space-4);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  height: 100%;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.date {
+  font-size: var(--font-size-md);
+}
+
+.fields {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.field {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--space-2);
+}
+
+.field dt {
+  color: var(--color-text-muted);
+}
+
+.field dd {
+  margin: 0;
+  margin-left: auto;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.tiers {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.tiers summary {
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.tierList {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tier {
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.tierRange {
+  font-weight: 600;
+}
+
+.tierFields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-1) 0 0;
+}
+
+.tierFields dt {
+  color: var(--color-text-muted);
+}
+
+.tierFields dd {
+  margin: 0;
+}
