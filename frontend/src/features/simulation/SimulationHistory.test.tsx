@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Page, Simulation } from '../../api/types.ts';
 import {
@@ -70,11 +71,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+// La página la guarda quien compone el historial (CustomerDetail); aquí, un estado local.
+function HistoryWithPage() {
+  const [page, setPage] = useState(1);
+  return <SimulationHistory customerId={7} page={page} onPageChange={setPage} />;
+}
+
 function renderHistory() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <SimulationHistory customerId={7} />
+      <HistoryWithPage />
     </QueryClientProvider>,
   );
 }

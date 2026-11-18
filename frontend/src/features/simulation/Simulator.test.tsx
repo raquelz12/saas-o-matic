@@ -85,7 +85,7 @@ async function advance(ms: number): Promise<void> {
 async function renderSimulator(): Promise<void> {
   render(
     <QueryClientProvider client={testQueryClient()}>
-      <Simulator customerId={7} />
+      <Simulator customerId={7} onSaved={() => undefined} />
     </QueryClientProvider>,
   );
   await advance(0);
@@ -140,7 +140,7 @@ describe('Simulator', () => {
     fetchMock.mockImplementation(() => new Promise<Response>(() => undefined));
     render(
       <QueryClientProvider client={testQueryClient()}>
-        <Simulator customerId={7} />
+        <Simulator customerId={7} onSaved={() => undefined} />
       </QueryClientProvider>,
     );
     expect(slider().value).toBe('1');

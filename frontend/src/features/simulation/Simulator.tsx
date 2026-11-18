@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import type { SimulationInput } from '../../api/types.ts';
 import { Projection } from './Projection.tsx';
+import { SaveSimulationButton } from './SaveSimulationButton.tsx';
 import styles from './Simulator.module.css';
 import { usePreview } from './usePreview.ts';
 
@@ -114,6 +115,10 @@ function useSimulatorControls(customerId: number) {
     apiCallsPerMonth: 0,
   });
 
+  const valid =
+    parseInteger(texts.storageGb, STORAGE_MAX) !== undefined &&
+    parseInteger(texts.apiCallsPerMonth, API_CALLS_MAX) !== undefined;
+
   function update(nextUsers: number, nextTexts: FieldTexts): void {
     setUsers(nextUsers);
     setTexts(nextTexts);
@@ -123,12 +128,19 @@ function useSimulatorControls(customerId: number) {
     setInput({ customerId, users: nextUsers, storageGb, apiCallsPerMonth });
   }
 
-  return { users, texts, input, update };
+  return { users, texts, input, valid, update };
 }
 
-// Simulador del detalle del cliente (RF-38): controles y proyección en tiempo real.
-export function Simulator({ customerId }: { customerId: number }) {
-  const { users, texts, input, update } = useSimulatorControls(customerId);
+export type SimulatorProps = {
+  customerId: number;
+  /** Se llama tras guardar, para que el historial vuelva a la página 1 (RF-39). */
+  onSaved: () => void;
+};
+
+// Simulador del detalle del cliente (RF-38, RF-39): controles, proyección en tiempo real y
+// guardado. Guardar no resetea los controles.
+export function Simulator({ customerId, onSaved }: SimulatorProps) {
+  const { users, texts, input, valid, update } = useSimulatorControls(customerId);
   const preview = usePreview(input);
 
   return (
@@ -153,6 +165,7 @@ export function Simulator({ customerId }: { customerId: number }) {
           />
         ))}
       </div>
+      <SaveSimulationButton input={input} valid={valid} onSaved={onSaved} />
       <Projection preview={preview} />
     </section>
   );

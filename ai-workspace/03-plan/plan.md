@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.34)
+# SaaS-O-Matic — Plan de implementación (v.35)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -35,6 +35,7 @@
 - v.32 — Decisiones tomadas al implementar T-30 (05-review-log.md, R-127): `customerFormErrors.ts` añadido a sus archivos; en el cliente, el identificador fiscal solo comprueba el mínimo de 5 tras trim y colapso, y el máximo lo decide el backend; tabla de textos por issue; aviso general para los errores sin campo; validación al enviar y error que se quita al editar; países ordenados por nombre; se invalida `customers.all`.
 - v.33 — Decisiones tomadas al implementar T-31a y T-31b (05-review-log.md, R-128 y R-129): `CustomerDetail.tsx` y su test añadidos a los archivos de T-31b, y CA-99 probado en `CustomerDetail.test.tsx`; la tarjeta de detalle muestra todos los campos salvo `id`, con el plan por su etiqueta; `h1` fijo «Detalle del cliente» y el nombre como `h2`; un `:id` sin formato válido muestra «Cliente no encontrado.» sin petición; el historial se pide solo cuando ha cargado el cliente; formatos de fecha, tasa y tramos; textos de los estados.
 - v.34 — Decisiones tomadas al implementar T-32 (05-review-log.md, R-130): `CustomerDetail.tsx` y su test añadidos a los archivos de T-32, con el simulador entre la tarjeta y el historial; valores iniciales 1 usuario, 0 GB y 0 llamadas; un valor no válido en GB o llamadas no lanza preview y marca el campo; tramos con `TierBreakdown`; textos de carga, error y aviso; última proyección válida guardada en estado; tests de la feature con su propio `QueryClient`.
+- v.35 — Decisiones tomadas al implementar T-33 (05-review-log.md, R-131): la página del historial sube a `CustomerDetail.tsx`, que se añade con su test a los archivos de T-33, y `<Simulator onSaved>` la devuelve a 1; `useSimulationHistory(customerId, page)`; botón en `SaveSimulationButton.tsx`, deshabilitado con `isPending` o con un control no válido y con una `ref` contra el doble clic en el mismo tick; sin mensaje de éxito y con aviso si falla; tests del guardado en `SimulatorSave.test.tsx` y CA-93 en `pages/CustomerDetailSave.test.tsx`.
 
 ## Contexto
 
@@ -778,10 +779,16 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Objetivo:** `useSaveSimulation`, botón deshabilitado mientras `isPending`, invalidación del historial con vuelta a la página 1 y formulario que conserva sus valores.
 - **Referencias:** RF-39.
 - **Depende de:** T-32.
-- **Archivos:** archivos de `frontend/src/features/simulation/` y sus tests.
+- **Archivos:** archivos de `frontend/src/features/simulation/` y sus tests. **Añadidos en T-33 (R-131):** `frontend/src/pages/CustomerDetail.tsx` y, para CA-93, `CustomerDetailSave.test.tsx`.
 - **Criterios:** CA-93; el doble clic produce una sola petición.
 - **Tests:** componente.
 - **Fuera de alcance:** idempotency key (descartada por la spec).
+- **Decisiones de T-33 (R-131):**
+  - La página del historial sube a `CustomerDetail.tsx` (`useState(1)`), porque el simulador y el historial son hermanos y las features no se importan entre sí (opción 1a, decisión del usuario). `<SimulationHistory customerId page onPageChange>` y `<Simulator customerId onSaved>`, que la pone a 1. `useSimulationHistory(customerId, page)` devuelve solo la query (sustituye a la forma `{ page, setPage, query }` de T-31b).
+  - `useSaveSimulation(customerId, onSaved)`: en `onSuccess` llama a `onSaved` y espera a `invalidateQueries(historyAll(customerId))`, de modo que la mutación sigue pendiente hasta que se ha vuelto a pedir el historial.
+  - `SaveSimulationButton.tsx`: deshabilitado con `isPending` o con un control no válido, para no guardar valores distintos de los que se ven (opción 2a, decisión del usuario), con el texto «Guardando…» mientras está en curso. TanStack notifica `isPending` de forma asíncrona, así que una `ref` descarta de forma síncrona un segundo clic en el mismo tick. Guardar no resetea los controles.
+  - Sin mensaje de éxito; si falla, «No se ha podido guardar la simulación.» con `role="alert"`, sin reintento automático (opción 3a, decisión del usuario).
+  - Tests: `SimulatorSave.test.tsx` (valores enviados, `onSaved`, invalidación, formulario conservado, doble clic, botón en curso y con un valor no válido, error y nuevo intento) y CA-93 en `pages/CustomerDetailSave.test.tsx`, desde la página 2 del historial. Van en archivos nuevos por el límite de 200 líneas de ESLint.
 
 ---
 
