@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.27)
+# SaaS-O-Matic — Plan de implementación (v.28)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -28,6 +28,7 @@
 - v.25 — Decisiones tomadas al implementar T-23 (05-review-log.md, R-117): `AppDeps.simulationsRepo` pasa a `Partial<SimulationsRepository>`, combinado con el repositorio real en `app.ts`; anotación del sustituto de CA-89 en `simulations.create.test.ts` (añadido a sus archivos); `history` con `findById` y `listByCustomer` en una sola transacción; router propio `createCustomerSimulationsRouter` montado bajo `/api/customers`; tests sin CA de orden por `createdAt` y de `tiers` sin recalcular con SQL directo.
 - v.26 — Decisiones tomadas al implementar T-24a y T-24b (05-review-log.md, R-118 y R-119): react-router 8.5.1, @tanstack/react-query 5.105.3 y @types/node 24.19.2 en el frontend; rutas `/`, `/customers/new` y `/customers/:id` sin ruta comodín; `App.tsx` y `App.test.tsx` borrados; `frontend/package.json` y `package-lock.json` añadidos a los archivos de T-24a; lista fija de features en ESLint; fixtures de lint como strings; API de los componentes de estado y `totalPages`.
 - v.27 — Decisiones tomadas al implementar T-25 (05-review-log.md, R-120): `VITE_API_URL` por defecto `http://localhost:3000`; `NETWORK_ERROR` también para errores JSON sin la forma 5.1 y para un 2xx no JSON, con el `status` real (0 si falla la red); el abort relanza el error original; respuestas 2xx sin validar; `search` vacío no se envía; query keys jerárquicas con `historyAll` para invalidar el historial.
+- v.28 — Decisiones tomadas al implementar T-26 (05-review-log.md, R-121): big.js 7.0.1 y @types/big.js 7.0.0; `frontend/package.json` y `package-lock.json` añadidos a sus archivos; `currencyDisplay: 'narrowSymbol'` para mostrar `¥` y `$` como en CA-97 y CA-98; `convert` devuelve un `Big` ya redondeado y el total se suma con `plus`; `formatMoney` formatea desde el string decimal, sin pasar por `number`.
 
 ## Contexto
 
@@ -56,7 +57,7 @@ Reglas comunes a todas las tareas:
 | T-11 | better-sqlite3 y @types/better-sqlite3 | Stack. **Instaladas en T-11 (R-105), con versión exacta:** better-sqlite3 13.0.3 y @types/better-sqlite3 9.6.0 (etiqueta `ts6.0`). La 13.1.1 y la 13.2.0 tenían menos de dos semanas. Trae binarios precompilados (`prebuilds/`, incluido `linux-x64`), así que no compila nada al instalarse |
 | T-24a | react-router, @tanstack/react-query | Stack. **Instaladas en T-24a (R-118), con versión exacta:** react-router 8.5.1 y @tanstack/react-query 5.105.3. Las 5.106 a 5.108 de @tanstack/react-query tenían menos de dos semanas |
 | T-24a | @types/node (24.19.2) en el frontend | **Añadida en T-24a (R-118, decisión del usuario).** Implícita: el test de lint usa `node:path` e `import.meta.dirname`. Se referencia solo en ese test, para no llevar los tipos de Node al código del navegador |
-| T-26 | big.js y @types/big.js | Spec RF-42 |
+| T-26 | big.js y @types/big.js | Spec RF-42. **Instaladas en T-26 (R-121), con versión exacta:** big.js 7.0.1 en `dependencies` y @types/big.js 7.0.0 en `devDependencies` (etiqueta `ts6.0`). big.js no tiene dependencias y trae módulo ESM |
 | T-27 | zod@4 en el frontend | Spec RF-41 |
 
 ---
@@ -573,7 +574,7 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Objetivo:** `convert(cents, rate, currency)` con big.js `roundHalfUp`, decimales según `Intl.NumberFormat` y formato `es-ES`, como lógica pura.
 - **Referencias:** RF-42, RB-14, RB-15, ADR-006.
 - **Depende de:** T-24a.
-- **Archivos:** `frontend/src/features/currency/conversion.ts` y `conversion.test.ts`.
+- **Archivos:** `frontend/src/features/currency/conversion.ts` y `conversion.test.ts`; `frontend/package.json` y `package-lock.json` por las dependencias.
 - **Criterios:**
   - CA-97 (JPY: 22.732 + 4774 = 27.506) y CA-98 (USD: 183,80) como lógica.
   - La fila GBP de RB-15.
@@ -581,6 +582,12 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
   - Los tests comparan contra la salida de `Intl.NumberFormat('es-ES')`, no contra literales.
 - **Tests:** unitarios.
 - **Fuera de alcance:** `<Money>` y `<MoneyTotal>` (T-28b, R-82), obtención de tipos y selector.
+- **Decisiones de T-26 (R-121):**
+  - `type Currency = 'EUR' | 'USD' | 'GBP' | 'JPY'` (RF-40).
+  - `fractionDigits(currency)` lee `maximumFractionDigits` de `Intl.NumberFormat('es-ES', { style: 'currency' })`: JPY tiene 0 y el resto 2.
+  - `convert(cents, rate, currency)` calcula `cents / 100 × rate` con big.js y redondea con `Big.roundHalfUp`. Devuelve un `Big`, y `<MoneyTotal>` (T-28b) suma base e impuesto con `plus`; no hay función de total aparte.
+  - `formatMoney(amount, currency)` usa `currencyDisplay: 'narrowSymbol'` (`27.506 ¥`, `183,80 $`, como en CA-97 y CA-98; decisión del usuario) y pasa a `Intl` el string de `toFixed(d)`, no un `number`. Un formateador cacheado por divisa.
+  - Los tests comprueban el valor con `toFixed` y el texto contra la salida de `Intl`. Además de los criterios, cubren la fila EUR, el total convertido directamente en JPY (27.505, RB-14) y el half-up en JPY.
 
 ### T-27 · Cliente de tipos de cambio y `useFxRates` [2–3 h]
 - **Objetivo:** fetch a `VITE_FX_URL` con `AbortSignal.timeout(5000)`, validación zod (`result`, cuatro divisas finitas > 0), `staleTime` desde `time_next_update_unix` y `gcTime: Infinity`.
