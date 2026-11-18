@@ -58,9 +58,16 @@ function SimulationCard({ simulation }: { simulation: Simulation }) {
   );
 }
 
+export interface SimulationHistoryProps {
+  customerId: number;
+  /** Página pedida: la guarda quien compone el historial, porque el guardado la devuelve a 1. */
+  page: number;
+  onPageChange: (page: number) => void;
+}
+
 // Contenido del historial según el estado de la query (RF-43).
-function HistoryContent({ customerId }: { customerId: number }) {
-  const { setPage, query } = useSimulationHistory(customerId);
+function HistoryContent({ customerId, page: requestedPage, onPageChange }: SimulationHistoryProps) {
+  const query = useSimulationHistory(customerId, requestedPage);
   if (query.isPending) return <LoadingState label="Cargando historial…" />;
   if (query.isError) {
     return (
@@ -85,17 +92,17 @@ function HistoryContent({ customerId }: { customerId: number }) {
           </li>
         ))}
       </ul>
-      <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
+      <Pagination page={page} pageSize={pageSize} total={total} onPageChange={onPageChange} />
     </>
   );
 }
 
 // Historial paginado de simulaciones del cliente (RF-35).
-export function SimulationHistory({ customerId }: { customerId: number }) {
+export function SimulationHistory(props: SimulationHistoryProps) {
   return (
     <section className={styles.history} aria-labelledby="simulation-history-title">
       <h2 id="simulation-history-title">Historial de simulaciones</h2>
-      <HistoryContent customerId={customerId} />
+      <HistoryContent {...props} />
     </section>
   );
 }

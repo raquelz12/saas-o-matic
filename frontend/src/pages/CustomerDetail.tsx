@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams } from 'react-router';
 import { CustomerDetailCard } from '../features/customers/CustomerDetailCard.tsx';
 import { isNotFoundError, useCustomer } from '../features/customers/useCustomer.ts';
@@ -21,8 +22,11 @@ export function parseCustomerId(raw: string | undefined): number | undefined {
 
 // Tarjeta del cliente y, cuando ha cargado, su historial (no se piden en paralelo: con un id
 // inexistente habría dos 404). Un 404 no tiene reintento (R-91); el resto de errores sí (RF-43).
+// La página del historial vive aquí porque el guardado del simulador la devuelve a 1 (RF-39) y
+// las features no se importan entre sí.
 function CustomerDetailContent({ customerId }: { customerId: number }) {
   const query = useCustomer(customerId);
+  const [historyPage, setHistoryPage] = useState(1);
   if (query.isPending) return <LoadingState label="Cargando cliente…" />;
   if (query.isError) {
     if (isNotFoundError(query.error)) return <ErrorState message={NOT_FOUND_MESSAGE} />;
@@ -38,8 +42,13 @@ function CustomerDetailContent({ customerId }: { customerId: number }) {
   return (
     <>
       <CustomerDetailCard customer={query.data} />
-      <Simulator customerId={customerId} />
-      <SimulationHistory customerId={customerId} />
+      <Simulator
+        customerId={customerId}
+        onSaved={() => {
+          setHistoryPage(1);
+        }}
+      />
+      <SimulationHistory customerId={customerId} page={historyPage} onPageChange={setHistoryPage} />
     </>
   );
 }
