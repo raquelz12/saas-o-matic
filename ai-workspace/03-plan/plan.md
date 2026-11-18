@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.28)
+# SaaS-O-Matic — Plan de implementación (v.29)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -29,6 +29,7 @@
 - v.26 — Decisiones tomadas al implementar T-24a y T-24b (05-review-log.md, R-118 y R-119): react-router 8.5.1, @tanstack/react-query 5.105.3 y @types/node 24.19.2 en el frontend; rutas `/`, `/customers/new` y `/customers/:id` sin ruta comodín; `App.tsx` y `App.test.tsx` borrados; `frontend/package.json` y `package-lock.json` añadidos a los archivos de T-24a; lista fija de features en ESLint; fixtures de lint como strings; API de los componentes de estado y `totalPages`.
 - v.27 — Decisiones tomadas al implementar T-25 (05-review-log.md, R-120): `VITE_API_URL` por defecto `http://localhost:3000`; `NETWORK_ERROR` también para errores JSON sin la forma 5.1 y para un 2xx no JSON, con el `status` real (0 si falla la red); el abort relanza el error original; respuestas 2xx sin validar; `search` vacío no se envía; query keys jerárquicas con `historyAll` para invalidar el historial.
 - v.28 — Decisiones tomadas al implementar T-26 (05-review-log.md, R-121): big.js 7.0.1 y @types/big.js 7.0.0; `frontend/package.json` y `package-lock.json` añadidos a sus archivos; `currencyDisplay: 'narrowSymbol'` para mostrar `¥` y `$` como en CA-97 y CA-98; `convert` devuelve un `Big` ya redondeado y el total se suma con `plus`; `formatMoney` formatea desde el string decimal, sin pasar por `number`.
+- v.29 — Decisiones tomadas al implementar T-27 (05-review-log.md, R-122): zod 4.6.7 en el frontend; `frontend/package.json` y `package-lock.json` añadidos a sus archivos; schema que exige además `time_next_update_unix` y `time_last_update_utc`; `FxError` propio y `TimeoutError` nativo; `VITE_FX_URL` por defecto el de `.env.example`; `refetchInterval` hasta `time_next_update_unix`, sin reintento automático tras un refresco fallido (opción A, decisión del usuario); query key propia en la feature; en el test del hook, `notifyManager.setScheduler(queueMicrotask)` y `QueryClient` propio.
 
 ## Contexto
 
@@ -58,7 +59,7 @@ Reglas comunes a todas las tareas:
 | T-24a | react-router, @tanstack/react-query | Stack. **Instaladas en T-24a (R-118), con versión exacta:** react-router 8.5.1 y @tanstack/react-query 5.105.3. Las 5.106 a 5.108 de @tanstack/react-query tenían menos de dos semanas |
 | T-24a | @types/node (24.19.2) en el frontend | **Añadida en T-24a (R-118, decisión del usuario).** Implícita: el test de lint usa `node:path` e `import.meta.dirname`. Se referencia solo en ese test, para no llevar los tipos de Node al código del navegador |
 | T-26 | big.js y @types/big.js | Spec RF-42. **Instaladas en T-26 (R-121), con versión exacta:** big.js 7.0.1 en `dependencies` y @types/big.js 7.0.0 en `devDependencies` (etiqueta `ts6.0`). big.js no tiene dependencias y trae módulo ESM |
-| T-27 | zod@4 en el frontend | Spec RF-41 |
+| T-27 | zod@4 en el frontend | Spec RF-41. **Instalada en T-27 (R-122), con versión exacta:** zod 4.6.7 en `dependencies`, la misma que el backend, así que el lockfile la comparte |
 
 ---
 
@@ -601,6 +602,14 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
   - El timeout pasa al estado de error.
 - **Tests:** unitarios y de hook con timers falsos y `fetch` simulado.
 - **Fuera de alcance:** UI del selector.
+- **Decisiones de T-27 (R-122):**
+  - Archivos añadidos: `frontend/package.json` y `package-lock.json` (dependencia zod 4.6.7).
+  - `fetchFxRates(signal?)` devuelve `FxRates { rates: Record<Currency, number>, lastUpdateUtc, nextUpdateUnix }`. Combina el `signal` de TanStack con `AbortSignal.timeout(5000)` mediante `AbortSignal.any`.
+  - Schema zod: `result: 'success'`, EUR, USD, GBP y JPY como `number().finite().positive()`, `time_next_update_unix` entero y `time_last_update_utc` string. Estos dos últimos no los nombra RF-41, pero sin ellos no hay caché ni fecha. Las demás divisas se descartan.
+  - Fallos: HTTP no 2xx, body no JSON o schema que no cumple → `FxError`. El timeout y el abort rechazan con el error nativo (`TimeoutError` / `AbortError`), y un fallo de red con el de `fetch`. Cualquiera de ellos deja la query en error.
+  - `VITE_FX_URL` ausente o vacía → `https://open.er-api.com/v6/latest/EUR` (valor de `.env.example`).
+  - `useFxRates()`: key propia `fxRatesKey = ['fxRates']` en la feature, porque `api/queryKeys.ts` es solo del backend. `staleTime` y `refetchInterval` como función: los milisegundos hasta `time_next_update_unix`. Al caducar se piden de nuevo; si ese refresco falla, se conservan los datos anteriores y no se programa otro intento (opción A, decisión del usuario; el reintento es manual, RF-43). `gcTime: Infinity`.
+  - Tests: `fxClient.test.ts` (descriptivos) y `useFxRates.test.ts` (CA-103 y descriptivos). `AbortSignal.timeout` no se puede adelantar con timers falsos, así que el test del timeout lo sustituye por una señal propia del mismo plazo. En el test del hook, `notifyManager.setScheduler(queueMicrotask)`, porque con timers falsos las notificaciones de TanStack no llegan a React dentro de `act`; y un `QueryClient` propio con la configuración de `app/queryClient.ts`, que una feature no puede importar.
 
 ### T-28 · Contexto de divisa, selector y pie de atribución [3 h]
 - **Objetivo:** `CurrencyProvider` (elección en `localStorage` dentro de try/catch; divisa efectiva EUR si no hay tipos), selector con estados de carga, error, deshabilitado y reintento, fecha de la tasa en `es-ES` y enlace de atribución en el pie.
