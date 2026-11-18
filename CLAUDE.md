@@ -59,5 +59,6 @@ Sigue la de ai-workspace/02-architecture/architecture.md, si alguna carpeta o ar
 - No modifiques la spec ni este archivo salvo que te lo pida.
 
 ## Comandos
-npm run dev · npm test · npm run lint · npm run db:migrate
-(se completan en T-01)
+Desde la raíz (detalle en README.md):
+npm ci --ignore-scripts · npm run dev · npm test · npm run lint · npm run typecheck
+npm run db:migrate · npm run db:seed · npm run db:seed:demo
