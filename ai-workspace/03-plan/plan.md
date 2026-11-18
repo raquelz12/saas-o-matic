@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.29)
+# SaaS-O-Matic — Plan de implementación (v.30)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -30,6 +30,7 @@
 - v.27 — Decisiones tomadas al implementar T-25 (05-review-log.md, R-120): `VITE_API_URL` por defecto `http://localhost:3000`; `NETWORK_ERROR` también para errores JSON sin la forma 5.1 y para un 2xx no JSON, con el `status` real (0 si falla la red); el abort relanza el error original; respuestas 2xx sin validar; `search` vacío no se envía; query keys jerárquicas con `historyAll` para invalidar el historial.
 - v.28 — Decisiones tomadas al implementar T-26 (05-review-log.md, R-121): big.js 7.0.1 y @types/big.js 7.0.0; `frontend/package.json` y `package-lock.json` añadidos a sus archivos; `currencyDisplay: 'narrowSymbol'` para mostrar `¥` y `$` como en CA-97 y CA-98; `convert` devuelve un `Big` ya redondeado y el total se suma con `plus`; `formatMoney` formatea desde el string decimal, sin pasar por `number`.
 - v.29 — Decisiones tomadas al implementar T-27 (05-review-log.md, R-122): zod 4.6.7 en el frontend; `frontend/package.json` y `package-lock.json` añadidos a sus archivos; schema que exige además `time_next_update_unix` y `time_last_update_utc`; `FxError` propio y `TimeoutError` nativo; `VITE_FX_URL` por defecto el de `.env.example`; `refetchInterval` hasta `time_next_update_unix`, sin reintento automático tras un refresco fallido (opción A, decisión del usuario); query key propia en la feature; en el test del hook, `notifyManager.setScheduler(queueMicrotask)` y `QueryClient` propio.
+- v.30 — Decisiones tomadas al implementar T-28 y T-28b (05-review-log.md, R-123 y R-124): `main.tsx` y `router.test.tsx` añadidos a los archivos de T-28; `CurrencyProvider` en `main.tsx`; enlace `Rates By Exchange Rate API` en el pie; fecha «Tipos del {fecha}» junto al selector con `dateStyle: 'medium'` y `timeStyle: 'short'`; sin aviso si falla el refresco con caché; el contexto expone el tipo efectivo (`rate`); importes en EUR mientras cargan los tipos; proveedor simulado = `CurrencyProvider` real con `fetch` simulado.
 
 ## Contexto
 
@@ -60,6 +61,7 @@ Reglas comunes a todas las tareas:
 | T-24a | @types/node (24.19.2) en el frontend | **Añadida en T-24a (R-118, decisión del usuario).** Implícita: el test de lint usa `node:path` e `import.meta.dirname`. Se referencia solo en ese test, para no llevar los tipos de Node al código del navegador |
 | T-26 | big.js y @types/big.js | Spec RF-42. **Instaladas en T-26 (R-121), con versión exacta:** big.js 7.0.1 en `dependencies` y @types/big.js 7.0.0 en `devDependencies` (etiqueta `ts6.0`). big.js no tiene dependencias y trae módulo ESM |
 | T-27 | zod@4 en el frontend | Spec RF-41. **Instalada en T-27 (R-122), con versión exacta:** zod 4.6.7 en `dependencies`, la misma que el backend, así que el lockfile la comparte |
+| T-28, T-28b | — | **Sin dependencias nuevas (R-123, R-124)** |
 
 ---
 
@@ -622,6 +624,15 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
   - Un `localStorage` que lanza error no rompe la aplicación.
 - **Tests:** componente con `fetch` simulado.
 - **Fuera de alcance:** pintar importes.
+- **Decisiones de T-28 (R-123):**
+  - Archivos añadidos: `frontend/src/main.tsx` (el `CurrencyProvider` va dentro del `QueryClientProvider` y envuelve al `RouterProvider`, architecture §1) y `frontend/src/app/router.test.tsx` (monta los dos proveedores y deja `fetch` pendiente). `Layout.module.css` no cambia.
+  - `CurrencyProvider` guarda la elección en `localStorage` con la clave `saas-o-matic.currency`, con lectura y escritura dentro de try/catch. Un valor que no es una de las cuatro divisas da EUR.
+  - El contexto expone `selected`, `currency` (la efectiva: EUR si no hay tipos, sin sobrescribir la elección guardada), `rate` (1 en EUR), `lastUpdateUtc`, `isLoading` (cargando sin caché), `isUnavailable` (fallo sin caché), `setCurrency` y `retry`. `useCurrency` lanza un error fuera del proveedor.
+  - Selector «Divisa» en la cabecera. Mientras carga sin caché, el selector está deshabilitado y se muestra `LoadingState` («Cargando tipos de cambio…»). Si falla sin caché, el selector queda deshabilitado en EUR y se muestra `ErrorState` con el aviso y «Reintentar».
+  - Si falla el refresco con tipos en caché, no hay aviso: se siguen usando y se muestra su fecha (RF-43, decisión del usuario). Riesgo aceptado: esos tipos quedan caducados hasta recargar.
+  - La fecha se muestra junto al selector como «Tipos del {fecha}», con `Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short' })` en hora local. Si no es una fecha válida, no se muestra.
+  - Pie: enlace `Rates By Exchange Rate API` a `https://www.exchangerate-api.com` (decisión del usuario).
+  - Tests: `CurrencySelector.test.tsx` (CA-100, CA-101, CA-102, CA-104, `localStorage` que lanza error y descriptivos) y `Layout.test.tsx` (persistencia entre dos rutas, enlace del pie y selector en la cabecera).
 
 ### T-28b · `<Money>` y `<MoneyTotal>` [2 h]
 - **Objetivo:** componentes que leen divisa y tipos de `useCurrency`: `<Money cents>` para importes sueltos y `<MoneyTotal baseCents taxCents>` como suma de los dos importes ya redondeados.
@@ -631,6 +642,11 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Criterios:** CA-97 y CA-98 renderizados con un proveedor de tipos simulado; sin tipos, se muestra en EUR (RB-16).
 - **Tests:** componentes.
 - **Fuera de alcance:** páginas.
+- **Decisiones de T-28b (R-124):**
+  - El tipo de la divisa efectiva lo da el contexto (`rate`), así que EUR nunca se convierte (RB-16). `<Money cents>` pinta `formatMoney(convert(cents, rate, currency))` en un `<span>`. `<MoneyTotal baseCents taxCents>` suma con `plus` la base y el impuesto ya convertidos (RB-14).
+  - Mientras cargan los tipos se pinta en EUR, igual que sin tipos.
+  - El proveedor de tipos simulado es el `CurrencyProvider` real, con `fetch` simulado y la divisa precargada en `localStorage`.
+  - Tests: `MoneyTotal.test.tsx` (CA-97 y CA-98 sobre el texto `base + impuesto = total`, la fila GBP de RB-15, RB-16 sin tipos y el estado de carga) y `Money.test.tsx` (half-up de `1.005`, un subtotal de tramo en JPY, EUR sin conversión y RB-16), comparados contra la salida de `Intl`.
 
 ### T-29a · `useDebouncedValue` y `useCustomerSearch` [2 h]
 - **Objetivo:** hook de debounce propio y hook de búsqueda paginada de clientes.

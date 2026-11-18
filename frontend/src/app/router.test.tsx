@@ -1,11 +1,32 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CurrencyProvider } from '../features/currency/CurrencyContext.tsx';
+import { createQueryClient } from './queryClient.ts';
 import { routes } from './router.tsx';
+
+// El layout pinta el selector de divisa, que pide los tipos: `fetch` queda pendiente.
+beforeEach(() => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => new Promise<Response>(() => undefined)),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(<RouterProvider router={router} />);
+  render(
+    <QueryClientProvider client={createQueryClient()}>
+      <CurrencyProvider>
+        <RouterProvider router={router} />
+      </CurrencyProvider>
+    </QueryClientProvider>,
+  );
 }
 
 describe('router', () => {
