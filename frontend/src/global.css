@@ -1,27 +1,80 @@
 /* Variables globales y reset mínimo. Los componentes usan CSS Modules con estas variables. */
-:root {
-  --color-bg: #f5f6f8;
-  --color-surface: #ffffff;
-  --color-text: #1c2430;
-  --color-text-muted: #5b6573;
-  --color-border: #d9dde3;
-  --color-primary: #2557d6;
-  --color-primary-contrast: #ffffff;
-  --color-danger: #b42318;
-  --color-danger-bg: #fdecea;
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/bricolage-grotesque';
 
-  --font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-size-sm: 0.875rem;
-  --font-size-md: 1rem;
+/* Ángulo animable del borde de luz de la proyección (Simulator.module.css). */
+@property --glow-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+:root {
+  color-scheme: dark;
+
+  /* Fondo casi negro con una cuadrícula técnica y una aurora violeta y cian. */
+  --color-bg: #07080c;
+  --color-grid: rgb(255 255 255 / 0.035);
+  --color-aurora-1: rgb(124 92 255 / 0.32);
+  --color-aurora-2: rgb(34 211 238 / 0.2);
+
+  /* Superficies de cristal: blanco muy transparente sobre el fondo, con borde fino. */
+  --color-surface: rgb(255 255 255 / 0.04);
+  --color-surface-solid: #10121a;
+  --color-surface-sunken: rgb(255 255 255 / 0.06);
+  --color-text: #eef0f6;
+  --color-text-muted: #9aa0b4;
+  --color-border: rgb(255 255 255 / 0.08);
+  --color-border-strong: rgb(255 255 255 / 0.16);
+
+  /* Acción principal invertida (píldora blanca, texto negro) y acento cian para datos y foco. */
+  --color-primary: #f4f5fa;
+  --color-primary-hover: #ffffff;
+  --color-primary-contrast: #07080c;
+  --color-accent: #5ee6ff;
+  --color-accent-2: #9b87ff;
+  --color-accent-soft: rgb(94 230 255 / 0.1);
+  --color-accent-ring: rgb(94 230 255 / 0.28);
+  --gradient-accent: linear-gradient(120deg, var(--color-accent-2), var(--color-accent));
+
+  --color-danger: #ff6b6b;
+  --color-danger-text: #ffb3b3;
+  --color-danger-bg: rgb(255 77 77 / 0.08);
+  --color-danger-border: rgb(255 107 107 / 0.3);
+
+  --font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Bricolage Grotesque Variable', 'Inter Variable', system-ui, sans-serif;
+  --font-size-sm: 0.8125rem;
+  --font-size-md: 0.9375rem;
   --font-size-lg: 1.25rem;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 1rem;
   --space-4: 1.5rem;
+  --space-5: 2.5rem;
 
-  --radius: 8px;
-  --content-max-width: 1100px;
+  --radius: 18px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+  --control-height: 2.75rem;
+  --content-max-width: 1120px;
+
+  --blur-glass: blur(14px) saturate(1.4);
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 20px 40px -24px rgb(0 0 0 / 0.8);
+  --shadow-card-hover:
+    0 1px 0 rgb(255 255 255 / 0.06) inset, 0 24px 48px -20px rgb(94 230 255 / 0.18);
+
+  --font-size-title: 2.5rem;
+  --font-size-section: 1.375rem;
+
+  /* Movimiento: curva de salida marcada y duraciones cortas (feedback, no decoración). */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --duration-press: 160ms;
+  --duration-hover: 220ms;
+  --duration-enter: 520ms;
+
+  accent-color: var(--color-accent);
 }
 
 *,
@@ -36,20 +89,125 @@ body {
   font-size: var(--font-size-md);
   line-height: 1.5;
   color: var(--color-text);
-  background: var(--color-bg);
+  background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss03';
+}
+
+/* Cuadrícula técnica: líneas cada 48 px que se desvanecen hacia abajo. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    linear-gradient(var(--color-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 30%, transparent 80%);
+  pointer-events: none;
+}
+
+/* Aurora: dos luces que derivan despacio (30 s) detrás de todo. */
+@keyframes aurora-drift {
+  50% {
+    transform: translate3d(4%, 3%, 0) scale(1.08);
+  }
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: -20% -10% auto;
+  z-index: -1;
+  height: 80vh;
+  background:
+    radial-gradient(40% 50% at 20% 30%, var(--color-aurora-1), transparent 70%),
+    radial-gradient(35% 45% at 80% 20%, var(--color-aurora-2), transparent 70%);
+  filter: blur(40px);
+  animation: aurora-drift 30s ease-in-out infinite;
+  pointer-events: none;
 }
 
 h1,
 h2,
 h3 {
   margin: 0 0 var(--space-3);
-  line-height: 1.25;
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+h1,
+h2 {
+  font-family: var(--font-display);
+}
+
+h1 {
+  font-size: var(--font-size-title);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+h2 {
+  font-size: var(--font-size-section);
+  letter-spacing: -0.025em;
+}
+
+h3 {
+  font-size: var(--font-size-md);
 }
 
 a {
-  color: var(--color-primary);
+  color: var(--color-accent);
+  text-underline-offset: 0.15em;
+  transition:
+    color var(--duration-hover) ease,
+    border-color var(--duration-hover) ease;
+}
+
+::selection {
+  color: var(--color-primary-contrast);
+  background: var(--color-accent);
+}
+
+/* Foco visible y coherente para teclado, en un solo sitio. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 button {
   font: inherit;
+  transition:
+    transform var(--duration-press) var(--ease-out),
+    background-color var(--duration-hover) ease,
+    border-color var(--duration-hover) ease,
+    box-shadow var(--duration-hover) ease,
+    opacity var(--duration-hover) ease;
+}
+
+/* Respuesta al pulsar. */
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* Las opciones de los `select` nativos, oscuras y legibles. */
+option {
+  color: var(--color-text);
+  background: var(--color-surface-solid);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  button:not(:disabled):active {
+    transform: none;
+  }
 }

@@ -1,63 +1,236 @@
-/* Controles del simulador (RF-38). Una columna en móvil; en escritorio, tantas como quepan. */
+/* Simulador (RF-38). En escritorio, los controles a la izquierda y la proyección a la derecha como
+   tarjeta oscura; en móvil, todo en una columna. Solo CSS: el orden del DOM no cambia. */
 .simulator {
-  margin-top: var(--space-4);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3) var(--space-4);
+  margin-top: 3.5rem;
+}
+
+.simulator > h2 {
+  margin-bottom: 0;
+}
+
+@media (min-width: 900px) {
+  .simulator {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+
+  .simulator > h2 {
+    grid-column: 1 / -1;
+  }
+
+  .controls {
+    grid-column: 1;
+    grid-row: 2;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .actions {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  /* La proyección (o su estado de carga) ocupa la columna derecha; el aviso de proyección
+     desactualizada queda bajo el botón de guardar. */
+  .simulator > article,
+  .simulator > div[role='status'] {
+    grid-column: 2;
+    grid-row: 2 / span 3;
+  }
+
+  .simulator > div[role='alert'] {
+    grid-column: 1;
+    grid-row: 4;
+  }
 }
 
 .controls {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  gap: 1.25rem;
+  padding: 1.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: var(--blur-glass);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
   min-width: 0;
 }
 
 .label {
   font-size: var(--font-size-sm);
+  font-weight: 600;
   color: var(--color-text-muted);
+}
+
+/* El valor del slider («Usuarios: 85») se lee como dato, no como parte de la etiqueta. */
+.label output {
+  margin-left: 0.25rem;
+  padding: 0.0625rem 0.5rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border-radius: var(--radius-pill);
+  font-variant-numeric: tabular-nums;
 }
 
 .control {
   width: 100%;
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
   font: inherit;
+  font-weight: 500;
   color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  background: var(--color-surface-sunken);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  transition:
+    border-color var(--duration-hover) ease,
+    background-color var(--duration-hover) ease,
+    box-shadow var(--duration-hover) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .control:hover {
+    border-color: var(--color-border-strong);
+  }
+}
+
+.control:focus-visible {
+  outline: none;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 4px var(--color-accent-ring);
 }
 
 .control[aria-invalid='true'] {
+  background: var(--color-danger-bg);
   border-color: var(--color-danger);
 }
 
 .slider {
   width: 100%;
-  accent-color: var(--color-primary);
+  height: 1.75rem;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
 }
 
-/* Guardado (RF-39): botón y, si falla, el aviso debajo. */
-.actions {
+.slider:focus-visible {
+  outline-offset: 2px;
+  border-radius: var(--radius-control);
+}
+
+/* La proyección es la respuesta de la pantalla: cristal oscuro con un borde de luz cian y violeta
+   que gira despacio (8 s) y una luz en la esquina. El borde es un `conic-gradient` en el
+   `border-box` detrás de un relleno opaco en el `padding-box`. */
+@keyframes glow-spin {
+  to {
+    --glow-angle: 360deg;
+  }
+}
+
+.simulator > article {
+  position: relative;
   display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 1.75rem;
+  background:
+    radial-gradient(24rem 16rem at 100% 0%, rgb(94 230 255 / 0.14), transparent 70%) padding-box,
+    radial-gradient(20rem 14rem at 0% 100%, rgb(155 135 255 / 0.16), transparent 70%) padding-box,
+    linear-gradient(var(--color-surface-solid), var(--color-surface-solid)) padding-box,
+    conic-gradient(
+        from var(--glow-angle),
+        rgb(255 255 255 / 0.08) 0deg,
+        var(--color-accent) 60deg,
+        var(--color-accent-2) 120deg,
+        rgb(255 255 255 / 0.08) 180deg,
+        rgb(255 255 255 / 0.08) 360deg
+      )
+      border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 30px 80px -30px rgb(94 230 255 / 0.35);
+  animation: glow-spin 8s linear infinite;
+}
+
+/* Si la tarjeta es más alta que su contenido (escritorio, junto a los controles), el total y el
+   desglose bajan al pie en lugar de dejar un hueco. */
+.simulator > article > dl {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+/* El total (última fila de la proyección) va debajo de su etiqueta, como métrica principal: la
+   cifra más grande de la app, con el degradado del acento. Solo la `dl` hija directa del artículo
+   es la de la proyección; la del desglose va dentro de un `details`. */
+.simulator > article > dl > div:last-child {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  margin-top: auto;
+  padding: var(--space-4) 0 0;
+  border-bottom: none;
+}
+
+.simulator > article > dl > div:last-child dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.simulator > article > dl > div:last-child dd {
+  margin-left: 0;
+  font-size: clamp(2.75rem, 6vw, 4rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-align: left;
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 24px rgb(94 230 255 / 0.25));
+}
+
+/* Guardado (RF-39), debajo de la proyección en móvil y bajo los controles en escritorio. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
 }
 
 .save {
-  padding: var(--space-2) var(--space-4);
+  min-height: 3rem;
+  padding: 0 1.5rem;
   font: inherit;
+  font-weight: 600;
   color: var(--color-primary-contrast);
   background: var(--color-primary);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius);
+  border: none;
+  border-radius: var(--radius-pill);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.12),
+    0 10px 28px -10px rgb(94 230 255 / 0.55);
   cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .save:not(:disabled):hover {
+    background: var(--color-primary-hover);
+  }
 }
 
 .save:disabled {

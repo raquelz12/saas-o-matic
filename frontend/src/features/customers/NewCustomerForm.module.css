@@ -1,34 +1,71 @@
-/* Formulario de alta de cliente (RF-36): una columna, también en móvil. */
+/* Formulario de alta de cliente (RF-36): una columna, también en móvil, sobre una superficie,
+   centrado en la página junto con su título. */
 .form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  max-width: 32rem;
+  gap: 1.25rem;
+  max-width: 34rem;
+  margin-inline: auto;
+  padding: 1.75rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: var(--blur-glass);
+}
+
+/* El título de la página de alta se centra sobre el formulario. */
+section:has(> .form) > h1 {
+  text-align: center;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .label {
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 .control {
   width: 100%;
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
   font: inherit;
   color: var(--color-text);
+  background: var(--color-surface-sunken);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  transition:
+    border-color var(--duration-hover) ease,
+    background-color var(--duration-hover) ease,
+    box-shadow var(--duration-hover) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .control:hover {
+    border-color: var(--color-border-strong);
+  }
+}
+
+.control:focus-visible {
+  outline: none;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 4px var(--color-accent-ring);
 }
 
 .control[aria-invalid='true'] {
+  background: var(--color-danger-bg);
   border-color: var(--color-danger);
+}
+
+.control[aria-invalid='true']:focus-visible {
+  box-shadow: 0 0 0 4px rgb(255 107 107 / 0.2);
 }
 
 .fieldError {
@@ -39,13 +76,25 @@
 
 .submit {
   align-self: flex-start;
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-height);
+  margin-top: var(--space-2);
+  padding: 0 1.5rem;
   font: inherit;
+  font-weight: 600;
   color: var(--color-primary-contrast);
   background: var(--color-primary);
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-pill);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.12),
+    0 10px 28px -10px rgb(94 230 255 / 0.55);
   cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .submit:not(:disabled):hover {
+    background: var(--color-primary-hover);
+  }
 }
 
 .submit:disabled {
