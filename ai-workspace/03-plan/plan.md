@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.30)
+# SaaS-O-Matic — Plan de implementación (v.31)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -31,6 +31,7 @@
 - v.28 — Decisiones tomadas al implementar T-26 (05-review-log.md, R-121): big.js 7.0.1 y @types/big.js 7.0.0; `frontend/package.json` y `package-lock.json` añadidos a sus archivos; `currencyDisplay: 'narrowSymbol'` para mostrar `¥` y `$` como en CA-97 y CA-98; `convert` devuelve un `Big` ya redondeado y el total se suma con `plus`; `formatMoney` formatea desde el string decimal, sin pasar por `number`.
 - v.29 — Decisiones tomadas al implementar T-27 (05-review-log.md, R-122): zod 4.6.7 en el frontend; `frontend/package.json` y `package-lock.json` añadidos a sus archivos; schema que exige además `time_next_update_unix` y `time_last_update_utc`; `FxError` propio y `TimeoutError` nativo; `VITE_FX_URL` por defecto el de `.env.example`; `refetchInterval` hasta `time_next_update_unix`, sin reintento automático tras un refresco fallido (opción A, decisión del usuario); query key propia en la feature; en el test del hook, `notifyManager.setScheduler(queueMicrotask)` y `QueryClient` propio.
 - v.30 — Decisiones tomadas al implementar T-28 y T-28b (05-review-log.md, R-123 y R-124): `main.tsx` y `router.test.tsx` añadidos a los archivos de T-28; `CurrencyProvider` en `main.tsx`; enlace `Rates By Exchange Rate API` en el pie; fecha «Tipos del {fecha}» junto al selector con `dateStyle: 'medium'` y `timeStyle: 'short'`; sin aviso si falla el refresco con caché; el contexto expone el tipo efectivo (`rate`); importes en EUR mientras cargan los tipos; proveedor simulado = `CurrencyProvider` real con `fetch` simulado.
+- v.31 — Decisiones tomadas al implementar T-29a y T-29b (05-review-log.md, R-125 y R-126): la página vuelve a 1 cuando cambia el texto debounced, no en cada tecla; `pageSize` no se envía; el plan se pinta con su código; `maxLength` de 100 en el buscador; un único texto de estado vacío; `customers.module.css` como CSS compartido; `Layout.test.tsx` añadido a los archivos de T-29b.
 
 ## Contexto
 
@@ -656,6 +657,12 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Criterios:** el valor solo cambia 300 ms después del último cambio (timers falsos); un cambio de texto devuelve `page` a 1; la query usa el texto debounced.
 - **Tests:** hooks con timers falsos.
 - **Fuera de alcance:** UI.
+- **Decisiones de T-29a (R-125):**
+  - `useDebouncedValue<T>(value, delayMs)`, genérico, con `setTimeout` en un `useEffect` que se cancela en el cleanup. El preview (RF-38) lo reutilizará con 250 ms.
+  - `useCustomerSearch()` devuelve `{ search, setSearch, page, setPage, query }`, con `SEARCH_DEBOUNCE_MS = 300`. La query usa `queryKeys.customers.list({ search: debounced, page })` y pasa su `signal` a `listCustomers`.
+  - La página vuelve a 1 cuando cambia el texto **debounced**, no en cada tecla (opción 1a, decisión del usuario). Así no se pide la página 1 del texto anterior mientras corre el debounce. La página se guarda junto al texto al que corresponde y se reinicia ajustando el estado durante el render, sin `useEffect`. Si se escribe y se vuelve al mismo texto dentro de los 300 ms, no hay búsqueda nueva y la página se conserva. Volver a un texto anterior tras una búsqueda no recupera su página.
+  - `pageSize` no se envía (20, el valor por defecto del backend) y el texto se envía sin trim, porque el backend ya normaliza la búsqueda.
+  - Tests: `useDebouncedValue.test.ts` y `useCustomerSearch.test.ts`, descriptivos, sin CA (CA-90 va en T-29b). El de búsqueda usa `notifyManager.setScheduler(queueMicrotask)` y un `QueryClient` propio, como `useFxRates.test.ts`.
 
 ### T-29b · Dashboard: buscador, listado y tarjetas [3 h]
 - **Objetivo:** buscador, listado paginado de tarjetas con enlace al detalle y botón de alta. Sin KPIs.
@@ -667,6 +674,13 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
   - Cada tarjeta muestra nombre de empresa, identificador fiscal, país (con `Intl.DisplayNames`) y plan, y enlaza a `/customers/:id` (decisión 2).
 - **Tests:** componentes con `fetch` simulado.
 - **Fuera de alcance:** formulario y detalle.
+- **Decisiones de T-29b (R-126):**
+  - Archivos: el CSS compartido es `customers.module.css`, que también usa `Dashboard.tsx` para la cabecera. Se añade `frontend/src/app/Layout.test.tsx` (decisión del usuario): su mock de `fetch` devolvía los tipos de cambio a cualquier URL y contaba también la petición de clientes del dashboard. Ahora responde según la URL y comprueba que los tipos de cambio se piden una sola vez.
+  - La tarjeta es un `<Link>` a `/customers/:id` con el nombre (`h2`), el identificador fiscal, el país y el plan, en un `<dl>`. El país se pinta con `Intl.DisplayNames('es-ES', { type: 'region' })` y, si no se resuelve, con el código. El plan se pinta con su código (`STARTER`, `BUSINESS`, `ENTERPRISE`), porque las etiquetas de `plans.ts` son de T-30 (opción 2a, decisión del usuario).
+  - El buscador es un `<input type="search">` con la etiqueta «Buscar por empresa o identificador fiscal» y `maxLength={100}` (spec 5.4; opción 3a, decisión del usuario).
+  - Estados: «Cargando clientes…», error «No se han podido cargar los clientes.» con «Reintentar» (`refetch`) y un único texto de estado vacío, «No se han encontrado clientes.» (opción 4a, decisión del usuario). Sin resultados no se muestra la paginación.
+  - El botón de alta es un enlace «Nuevo cliente» a `/customers/new`.
+  - Tests: `Dashboard.test.tsx` (CA-90, CA-105 y descriptivos: campos y enlace de la tarjeta, carga, error con reintento, vacío, botón de alta y `maxLength`). Monta el dashboard con sus rutas de destino y sin el layout, así que no pide tipos de cambio.
 
 ### T-30 · Formulario de alta de cliente [3–4 h]
 - **Objetivo:** formulario con `useCountries` y `Intl.DisplayNames`, enum de planes, validación local (obligatorios y longitudes tras trim y colapso), `useCreateCustomer` y errores de `details[]` junto a cada campo, incluido el 409.

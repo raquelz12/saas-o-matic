@@ -17,12 +17,29 @@ function fxResponse(): Response {
   return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
 }
 
+function emptyCustomersResponse(): Response {
+  const body = { items: [], page: 1, pageSize: 20, total: 0 };
+  return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
+}
+
+/** Peticiones al backend propio (`VITE_API_URL + /api`); el resto son de tipos de cambio. */
+function isBackendCall(input: Parameters<typeof fetch>[0]): boolean {
+  return new URL(String(input)).pathname.startsWith('/api/');
+}
+
 const fetchMock = vi.fn<typeof fetch>();
+
+/** Peticiones de tipos de cambio: el dashboard también pide clientes desde T-29b. */
+function fxCalls(): number {
+  return fetchMock.mock.calls.filter(([input]) => !isBackendCall(input)).length;
+}
 
 beforeEach(() => {
   window.localStorage.clear();
   fetchMock.mockReset();
-  fetchMock.mockImplementation(() => Promise.resolve(fxResponse()));
+  fetchMock.mockImplementation((input) =>
+    Promise.resolve(isBackendCall(input) ? emptyCustomersResponse() : fxResponse()),
+  );
   vi.stubGlobal('fetch', fetchMock);
 });
 
@@ -56,7 +73,7 @@ describe('Layout', () => {
     fireEvent.click(screen.getByRole('link', { name: 'SaaS-O-Matic' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Clientes' })).toBeTruthy();
     expect(currencySelect().value).toBe('USD');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fxCalls()).toBe(1);
   });
 
   it('el pie enlaza a la atribución de la API de tipos de cambio (RF-41)', () => {
