@@ -37,6 +37,7 @@
 - v.34 — Decisiones tomadas al implementar T-32 (05-review-log.md, R-130): `CustomerDetail.tsx` y su test añadidos a los archivos de T-32, con el simulador entre la tarjeta y el historial; valores iniciales 1 usuario, 0 GB y 0 llamadas; un valor no válido en GB o llamadas no lanza preview y marca el campo; tramos con `TierBreakdown`; textos de carga, error y aviso; última proyección válida guardada en estado; tests de la feature con su propio `QueryClient`.
 - v.35 — Decisiones tomadas al implementar T-33 (05-review-log.md, R-131): la página del historial sube a `CustomerDetail.tsx`, que se añade con su test a los archivos de T-33, y `<Simulator onSaved>` la devuelve a 1; `useSimulationHistory(customerId, page)`; botón en `SaveSimulationButton.tsx`, deshabilitado con `isPending` o con un control no válido y con una `ref` contra el doble clic en el mismo tick; sin mensaje de éxito y con aviso si falla; tests del guardado en `SimulatorSave.test.tsx` y CA-93 en `pages/CustomerDetailSave.test.tsx`.
 - v.36 — Decisiones tomadas al implementar T-34 (05-review-log.md, R-132): los clientes demo pasan por `buildCreateCustomerSchema` y `customersService.create`; script `db:seed:demo` también en el `package.json` raíz (añadido a sus archivos); el CLI ejecuta antes `prepareDatabase`; clientes existentes comprobados con `customersService.search`, en la misma transacción que las inserciones; 10 clientes que cubren los 7 países y los 3 planes.
+- v.37 — Decisiones tomadas al implementar T-35 (05-review-log.md, R-133): arranque con `npm ci --ignore-scripts`, porque `npm ci` intenta compilar better-sqlite3 con node-gyp aunque trae binarios precompilados; sección «Comandos» de CLAUDE.md actualizada; el README enlaza el contrato de la API en lugar de copiarlo; criterio verificado en un clon limpio.
 
 ## Contexto
 
@@ -818,6 +819,11 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Criterios:** un clon limpio arranca siguiendo el README.
 - **Tests:** —
 - **Fuera de alcance:** ADR nuevos.
+- **Decisiones de T-35 (R-133):**
+  - `npm ci` en un clon limpio en Windows falla sin las herramientas de C++: better-sqlite3 contiene `binding.gyp`, así que npm lanza `node-gyp rebuild` aunque el paquete declare `gypfile: false` y traiga `prebuilds/`. El README usa `npm ci --ignore-scripts` y explica por qué (decisión del usuario). CI no cambia.
+  - Se actualiza la sección «Comandos» de CLAUDE.md con los scripts reales (decisión del usuario).
+  - El README enlaza el contrato de la API (spec 5) en lugar de copiarlo (decisión del usuario).
+  - Verificado en un clon limpio: instalación, `db:seed:demo` dos veces, `npm run dev`, API, preflight CORS y Vite.
 
 ### T-36 · Revisión final contra la spec y trazabilidad [3 h]
 - **Objetivo:** matriz de trazabilidad CA → test, script opcional en CI que extrae los `CA-\d+` de los tests y los compara con la spec, verificación manual de CA-91 y lista de desviaciones.
