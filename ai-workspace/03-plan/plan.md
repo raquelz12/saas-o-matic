@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.26)
+# SaaS-O-Matic — Plan de implementación (v.27)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -27,6 +27,7 @@
 - v.24 — Decisiones tomadas al implementar T-22 (05-review-log.md, R-116): `AppDeps.simulationsRepo` opcional para CA-89; `save` reutiliza `quote` en la misma transacción que el `insert`; el service reexporta el tipo `Simulation` para el controller; `postSimulation` añadido a `simulationFactory.ts` (añadido a sus archivos).
 - v.25 — Decisiones tomadas al implementar T-23 (05-review-log.md, R-117): `AppDeps.simulationsRepo` pasa a `Partial<SimulationsRepository>`, combinado con el repositorio real en `app.ts`; anotación del sustituto de CA-89 en `simulations.create.test.ts` (añadido a sus archivos); `history` con `findById` y `listByCustomer` en una sola transacción; router propio `createCustomerSimulationsRouter` montado bajo `/api/customers`; tests sin CA de orden por `createdAt` y de `tiers` sin recalcular con SQL directo.
 - v.26 — Decisiones tomadas al implementar T-24a y T-24b (05-review-log.md, R-118 y R-119): react-router 8.5.1, @tanstack/react-query 5.105.3 y @types/node 24.19.2 en el frontend; rutas `/`, `/customers/new` y `/customers/:id` sin ruta comodín; `App.tsx` y `App.test.tsx` borrados; `frontend/package.json` y `package-lock.json` añadidos a los archivos de T-24a; lista fija de features en ESLint; fixtures de lint como strings; API de los componentes de estado y `totalPages`.
+- v.27 — Decisiones tomadas al implementar T-25 (05-review-log.md, R-120): `VITE_API_URL` por defecto `http://localhost:3000`; `NETWORK_ERROR` también para errores JSON sin la forma 5.1 y para un 2xx no JSON, con el `status` real (0 si falla la red); el abort relanza el error original; respuestas 2xx sin validar; `search` vacío no se envía; query keys jerárquicas con `historyAll` para invalidar el historial.
 
 ## Contexto
 
@@ -558,6 +559,15 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
   - Abortar el `signal` rechaza con `AbortError` y no con `ApiError`.
 - **Tests:** unitarios con `fetch` simulado.
 - **Fuera de alcance:** hooks de TanStack (van en cada feature) y API de tipos de cambio.
+- **Decisiones de T-25 (R-120):**
+  - `VITE_API_URL` ausente o vacía → `http://localhost:3000` (valor de `.env.example`); se quitan las barras finales antes de añadir `/api`.
+  - `ApiError { status, code, message, details }`. `NETWORK_ERROR` con `details: []` cuando `fetch` rechaza (`status` 0), cuando el body no es JSON (también en un 2xx) o cuando un error JSON no tiene la forma 5.1; en los dos últimos casos se guarda el `status` HTTP. `message` fijo en inglés.
+  - Si el `signal` está abortado, el error de `fetch` o de `res.json()` se relanza tal cual (`AbortError`).
+  - Las respuestas 2xx no se validan en tiempo de ejecución: se confía en el contrato del propio backend. La forma del error se comprueba con guardas de tipos, sin zod en el frontend.
+  - Query con `URLSearchParams`, sin los valores `undefined`; un `search` vacío no se envía.
+  - Funciones: `listCustomers(params, signal?)`, `getCustomer(id, signal?)`, `createCustomer(input)`, `listSimulations(customerId, params, signal?)`, `previewSimulation(input, signal?)`, `saveSimulation(input)` y `listCountries(signal?)`.
+  - `queryKeys` jerárquicas: `customers.all`, `customers.list(params)`, `customers.detail(id)`, `simulations.historyAll(customerId)` (prefijo para invalidar todas las páginas tras guardar, RF-39), `simulations.history(customerId, params)`, `simulations.preview(input)` y `countries.all`.
+  - Tests descriptivos sin CA en `client.test.ts`, con `fetch` simulado por `vi.stubGlobal` y `VITE_API_URL` por `vi.stubEnv`.
 
 ### T-26 · Conversión de divisa (TDD) [2 h]
 - **Objetivo:** `convert(cents, rate, currency)` con big.js `roundHalfUp`, decimales según `Intl.NumberFormat` y formato `es-ES`, como lógica pura.
