@@ -12,7 +12,8 @@
   "scripts": {
     "dev": "concurrently -n backend,frontend \"npm run dev -w backend --if-present\" \"npm run dev -w frontend\"",
     "lint": "eslint . && prettier --check \"**/*.{ts,tsx,js,jsx,css}\"",
-    "typecheck": "npm run typecheck --workspaces",
+    "typecheck": "npm run typecheck --workspaces && tsc -p scripts",
+    "check:ca": "node scripts/check-ca.ts",
     "test": "npm test --workspaces",
     "db:migrate": "npm run db:migrate -w backend",
     "db:seed": "npm run db:seed -w backend",
