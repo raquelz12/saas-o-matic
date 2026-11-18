@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.32)
+# SaaS-O-Matic — Plan de implementación (v.33)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -33,6 +33,7 @@
 - v.30 — Decisiones tomadas al implementar T-28 y T-28b (05-review-log.md, R-123 y R-124): `main.tsx` y `router.test.tsx` añadidos a los archivos de T-28; `CurrencyProvider` en `main.tsx`; enlace `Rates By Exchange Rate API` en el pie; fecha «Tipos del {fecha}» junto al selector con `dateStyle: 'medium'` y `timeStyle: 'short'`; sin aviso si falla el refresco con caché; el contexto expone el tipo efectivo (`rate`); importes en EUR mientras cargan los tipos; proveedor simulado = `CurrencyProvider` real con `fetch` simulado.
 - v.31 — Decisiones tomadas al implementar T-29a y T-29b (05-review-log.md, R-125 y R-126): la página vuelve a 1 cuando cambia el texto debounced, no en cada tecla; `pageSize` no se envía; el plan se pinta con su código; `maxLength` de 100 en el buscador; un único texto de estado vacío; `customers.module.css` como CSS compartido; `Layout.test.tsx` añadido a los archivos de T-29b.
 - v.32 — Decisiones tomadas al implementar T-30 (05-review-log.md, R-127): `customerFormErrors.ts` añadido a sus archivos; en el cliente, el identificador fiscal solo comprueba el mínimo de 5 tras trim y colapso, y el máximo lo decide el backend; tabla de textos por issue; aviso general para los errores sin campo; validación al enviar y error que se quita al editar; países ordenados por nombre; se invalida `customers.all`.
+- v.33 — Decisiones tomadas al implementar T-31a y T-31b (05-review-log.md, R-128 y R-129): `CustomerDetail.tsx` y su test añadidos a los archivos de T-31b, y CA-99 probado en `CustomerDetail.test.tsx`; la tarjeta de detalle muestra todos los campos salvo `id`, con el plan por su etiqueta; `h1` fijo «Detalle del cliente» y el nombre como `h2`; un `:id` sin formato válido muestra «Cliente no encontrado.» sin petición; el historial se pide solo cuando ha cargado el cliente; formatos de fecha, tasa y tramos; textos de los estados.
 
 ## Contexto
 
@@ -723,15 +724,33 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Criterios:** CA-105 en el detalle; un id inexistente (404) muestra «cliente no encontrado» sin botón de reintento (R-91); otros errores muestran reintento.
 - **Tests:** componentes.
 - **Fuera de alcance:** historial y simulador.
+- **Decisiones de T-31a (R-128):**
+  - `useCustomer(id)` usa `queryKeys.customers.detail(id)` y pasa su `signal` a `getCustomer`. `isNotFoundError(error)` (un `ApiError` con `status` 404) vive en el mismo archivo, para que la página no importe `api/`.
+  - La tarjeta (`<article aria-label="Datos del cliente">`) muestra todos los campos de `Customer` salvo `id` (opción 3a, decisión del usuario): el nombre en un `h2` y, en un `<dl>`, el identificador fiscal, el email, el país (`countryName` de `CustomerCard.tsx`), el plan con su etiqueta de `PLAN_LABELS` (`Business`) y la fecha de alta. Las fechas se formatean con `Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short' })` en hora local; si el texto no es una fecha, se pinta tal cual (opción 4a, decisión del usuario). Todo es texto de JSX, que React escapa (RF-44, CA-105).
+  - La página mantiene siempre el `h1` «Detalle del cliente», también mientras carga o con error, y el nombre de la empresa va en el `h2` de la tarjeta, como en el listado. Así `router.test.tsx` sigue sin cambios.
+  - Un `:id` que no cumple `^[1-9][0-9]*$` o supera 2 147 483 647 (spec 3.5) muestra «Cliente no encontrado.» sin hacer ninguna petición (opción 5a, decisión del usuario).
+  - Estados (decisión del usuario): «Cargando cliente…»; con un 404, «Cliente no encontrado.» sin «Reintentar» (R-91); con cualquier otro error, «No se ha podido cargar el cliente.» con «Reintentar» (`refetch`).
+  - La tarjeta se apila a 360 px con una rejilla `auto-fill` de `minmax(min(100%, 220px), 1fr)` y `overflow-wrap: anywhere` (CA-91).
+  - Tests: `CustomerDetail.test.tsx` monta las `routes` reales con `Layout` y `CurrencyProvider`, y un `fetch` simulado que responde según la URL. Cubre CA-105 en el detalle y, sin CA, los campos de la tarjeta, la carga, el 404 sin reintento y sin pedir el historial, el reintento tras otro error y los ids sin formato válido sin petición.
 
 ### T-31b · Historial de simulaciones [3 h]
 - **Objetivo:** `useSimulationHistory`, historial paginado con fecha, usuarios, GB, llamadas, base, impuesto, total y tasa, y desplegable de tramos con cada subtotal convertido por separado.
 - **Referencias:** RF-35, RF-40 (historial y tarjetas), RB-14 (tramos).
 - **Depende de:** T-31a, T-29b.
-- **Archivos:** en `frontend/src/features/simulation/`: `useSimulationHistory.ts`, `SimulationHistory.tsx`, `TierBreakdown.tsx` y un `.module.css` compartido. Además, su test.
+- **Archivos:** en `frontend/src/features/simulation/`: `useSimulationHistory.ts`, `SimulationHistory.tsx`, `TierBreakdown.tsx` y un `.module.css` compartido. Además, su test. **Añadidos en T-31b (R-129):** `frontend/src/pages/CustomerDetail.tsx` y `CustomerDetail.test.tsx`.
 - **Criterios:** CA-99 navegando de dashboard a detalle con USD; CA-91 verificado a mano (360 px y escritorio); estados de carga, error y vacío.
 - **Tests:** componentes.
 - **Fuera de alcance:** simulador.
+- **Decisiones de T-31b (R-129):**
+  - Archivos: se añade `CustomerDetail.tsx`, porque el historial se compone en la página y las features no se importan entre sí (opción 1a, decisión del usuario). CA-99 se prueba en `CustomerDetail.test.tsx` con las `routes` reales (opción 2a, decisión del usuario). El CSS compartido es `simulation.module.css`.
+  - El historial se monta solo cuando ha cargado el cliente, así que con un id inexistente hay un único 404 (opción 6a, decisión del usuario). El contenido del detalle lleva `key={customerId}`, para que la página del historial vuelva a 1 al pasar de un cliente a otro.
+  - `useSimulationHistory(customerId)` devuelve `{ page, setPage, query }`, con la key `queryKeys.simulations.history(customerId, { page })`, que cuelga de `historyAll(customerId)` para la invalidación de RF-39. `pageSize` no se envía (20, el valor por defecto del backend).
+  - Cada simulación es una tarjeta (`<article aria-label="Simulación {id}">`) con la fecha en un `h3` y, en un `<dl>`, usuarios, almacenamiento («250 GB»), llamadas a la API al mes, base e impuesto (`<Money>`), total (`<MoneyTotal>`) y tasa aplicada. Los números van con `Intl.NumberFormat('es-ES')`. La tasa se pinta como porcentaje `es-ES` a partir de los puntos básicos (`2100` → «21 %»), solo para visualización (opción 4a, decisión del usuario).
+  - Desglose: `<details>` cerrado por defecto con «Ver desglose por tramos». Cada tramo muestra «Usuarios 1–10» (o «Usuarios desde 51» si `to` es `null`), las unidades, el precio unitario y el subtotal. Cada importe va en su propio `<Money>`, así que se convierte y se redondea por separado (RB-14). Es una lista y no una tabla, para que no haya scroll horizontal a 360 px (CA-91).
+  - Estados (decisión del usuario): «Cargando historial…», «No se ha podido cargar el historial.» con «Reintentar» (`refetch`), y «Todavía no hay simulaciones guardadas.». Sin simulaciones no se muestra la paginación.
+  - `formatDateTime` está duplicado en `CustomerDetailCard.tsx` y `SimulationHistory.tsx`: son 3 líneas, las features no se importan entre sí y CLAUDE.md pide que cada helper viva junto a quien lo usa.
+  - Tests: `SimulationHistory.test.tsx` sustituye `useCurrency` con `vi.mock`, porque una feature no puede importar el `CurrencyProvider`; `<Money>` y `<MoneyTotal>` son los reales. Son descriptivos, sin CA: petición sin `pageSize`, carga, vacío, error con reintento, campos de la tarjeta, desplegable de tramos, subtotales convertidos por separado en JPY (RB-14) y paginación. `CustomerDetail.test.tsx` cubre CA-99: elige USD en el dashboard, abre la tarjeta del cliente y comprueba el selector, la base, el impuesto, el total y los subtotales en USD.
+  - CA-91 verificado a mano (360 px y escritorio, con datos creados por la API, sin scroll horizontal); se registra en T-36. El aspecto visual se revisará cuando esté terminado el frontend (decisión del usuario).
 
 ### T-32 · Simulador con preview en tiempo real [3–4 h]
 - **Objetivo:** slider de 1–500 y controles de GB y llamadas dentro de los rangos de 3.4, `usePreview` (key con valores debounced a 250 ms, `signal`, última proyección válida conservada con aviso) y proyección con base, impuesto, total y tramos.
