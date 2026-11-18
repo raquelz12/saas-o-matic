@@ -1,4 +1,11 @@
-// Placeholder: el formulario de alta llega en T-30.
+import { NewCustomerForm } from '../features/customers/NewCustomerForm.tsx';
+
+// Alta de cliente (RF-36): tras un alta correcta, el formulario navega al detalle.
 export function NewCustomer() {
-  return <h1>Nuevo cliente</h1>;
+  return (
+    <section>
+      <h1>Nuevo cliente</h1>
+      <NewCustomerForm />
+    </section>
+  );
 }
