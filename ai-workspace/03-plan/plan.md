@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.35)
+# SaaS-O-Matic — Plan de implementación (v.36)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -36,6 +36,7 @@
 - v.33 — Decisiones tomadas al implementar T-31a y T-31b (05-review-log.md, R-128 y R-129): `CustomerDetail.tsx` y su test añadidos a los archivos de T-31b, y CA-99 probado en `CustomerDetail.test.tsx`; la tarjeta de detalle muestra todos los campos salvo `id`, con el plan por su etiqueta; `h1` fijo «Detalle del cliente» y el nombre como `h2`; un `:id` sin formato válido muestra «Cliente no encontrado.» sin petición; el historial se pide solo cuando ha cargado el cliente; formatos de fecha, tasa y tramos; textos de los estados.
 - v.34 — Decisiones tomadas al implementar T-32 (05-review-log.md, R-130): `CustomerDetail.tsx` y su test añadidos a los archivos de T-32, con el simulador entre la tarjeta y el historial; valores iniciales 1 usuario, 0 GB y 0 llamadas; un valor no válido en GB o llamadas no lanza preview y marca el campo; tramos con `TierBreakdown`; textos de carga, error y aviso; última proyección válida guardada en estado; tests de la feature con su propio `QueryClient`.
 - v.35 — Decisiones tomadas al implementar T-33 (05-review-log.md, R-131): la página del historial sube a `CustomerDetail.tsx`, que se añade con su test a los archivos de T-33, y `<Simulator onSaved>` la devuelve a 1; `useSimulationHistory(customerId, page)`; botón en `SaveSimulationButton.tsx`, deshabilitado con `isPending` o con un control no válido y con una `ref` contra el doble clic en el mismo tick; sin mensaje de éxito y con aviso si falla; tests del guardado en `SimulatorSave.test.tsx` y CA-93 en `pages/CustomerDetailSave.test.tsx`.
+- v.36 — Decisiones tomadas al implementar T-34 (05-review-log.md, R-132): los clientes demo pasan por `buildCreateCustomerSchema` y `customersService.create`; script `db:seed:demo` también en el `package.json` raíz (añadido a sus archivos); el CLI ejecuta antes `prepareDatabase`; clientes existentes comprobados con `customersService.search`, en la misma transacción que las inserciones; 10 clientes que cubren los 7 países y los 3 planes.
 
 ## Contexto
 
@@ -798,10 +799,16 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Objetivo:** `npm run db:seed:demo`, que crea clientes de ejemplo a través del service, nunca con SQL directo, para que pasen la normalización y el checksum.
 - **Referencias:** architecture §1 (`db/`), ADR-003. No aparece en la spec (R-93).
 - **Depende de:** T-22.
-- **Archivos:** `backend/src/db/seedDemo.ts`, el script en `package.json` y `backend/test/db/seedDemo.test.ts`.
+- **Archivos:** `backend/src/db/seedDemo.ts`, el script en `package.json` y `backend/test/db/seedDemo.test.ts`. **Añadido en T-34 (R-132):** el script también en el `package.json` raíz.
 - **Criterios:** si ya hay clientes, no inserta nada y lo indica por consola; dos ejecuciones dejan el mismo número de filas (R-91); `createTestApp` nunca lo ejecuta. Solo crea clientes, sin simulaciones (decisión 3).
 - **Tests:** ejecuta el seed sobre `:memory:` dos veces y comprueba el número de filas.
 - **Fuera de alcance:** el seed de tasas.
+- **Decisiones de T-34 (R-132):**
+  - Cada cliente demo pasa por `buildCreateCustomerSchema(taxRatesRepo.listCodes()).parse(raw)` y `customersService.create`: el mismo camino que `POST /customers`, sin HTTP, porque la normalización y el checksum viven en el schema (decisión del usuario). Un dato demo no válido hace fallar el seed.
+  - Script `db:seed:demo` en `backend/package.json` y en el `package.json` raíz (decisión del usuario). El CLI ejecuta antes `prepareDatabase(DB_PATH)`, que aplica las migraciones y las tasas.
+  - Si `customersService.search({ search: '', page: 1, pageSize: 1 }).total` es mayor que 0, no inserta nada y lo indica por el logger. La comprobación y las inserciones van en una sola transacción.
+  - 10 clientes ficticios (`@example.com`) que cubren los 7 países y los 3 planes, con NIF, NIE y CIF españoles válidos, algunos sin normalizar (decisión del usuario).
+  - Tests en `seedDemo.test.ts` sobre `createTestDb()`: dos ejecuciones, cliente previo, normalización, cobertura de países y planes, sin simulaciones y `createTestDb()` sin clientes demo.
 
 ### T-35 · README [1–2 h]
 - **Objetivo:** qué es, requisitos (Node 24), arranque en pocos pasos, scripts, variables de entorno y limitaciones documentadas (spec 1.7).
