@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.25)
+# SaaS-O-Matic — Plan de implementación (v.26)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -26,6 +26,7 @@
 - v.23 — Decisiones tomadas al implementar T-21 (05-review-log.md, R-115): tasa inexistente → 500; `runInTransaction` inyectado desde `app.ts`; `quote` interna reutilizable por T-22; máximo de `customerId` como constante local; tests en dos archivos con el helper `simulationFactory.ts` (añadidos a sus archivos); CA-12 con un único servidor y `fetch`.
 - v.24 — Decisiones tomadas al implementar T-22 (05-review-log.md, R-116): `AppDeps.simulationsRepo` opcional para CA-89; `save` reutiliza `quote` en la misma transacción que el `insert`; el service reexporta el tipo `Simulation` para el controller; `postSimulation` añadido a `simulationFactory.ts` (añadido a sus archivos).
 - v.25 — Decisiones tomadas al implementar T-23 (05-review-log.md, R-117): `AppDeps.simulationsRepo` pasa a `Partial<SimulationsRepository>`, combinado con el repositorio real en `app.ts`; anotación del sustituto de CA-89 en `simulations.create.test.ts` (añadido a sus archivos); `history` con `findById` y `listByCustomer` en una sola transacción; router propio `createCustomerSimulationsRouter` montado bajo `/api/customers`; tests sin CA de orden por `createdAt` y de `tiers` sin recalcular con SQL directo.
+- v.26 — Decisiones tomadas al implementar T-24a y T-24b (05-review-log.md, R-118 y R-119): react-router 8.5.1, @tanstack/react-query 5.105.3 y @types/node 24.19.2 en el frontend; rutas `/`, `/customers/new` y `/customers/:id` sin ruta comodín; `App.tsx` y `App.test.tsx` borrados; `frontend/package.json` y `package-lock.json` añadidos a los archivos de T-24a; lista fija de features en ESLint; fixtures de lint como strings; API de los componentes de estado y `totalPages`.
 
 ## Contexto
 
@@ -52,7 +53,8 @@ Reglas comunes a todas las tareas:
 | T-03 | @types/node (24.x) en el backend | **Añadida en T-03.** Implícita: el test de lint usa `node:fs`, `node:path` e `import.meta.dirname`, y TypeScript 6 exige declararla en `types`. También la necesitarán T-10a y T-10b |
 | T-10b | express@5, cors, zod@4, supertest y sus @types | Stack. **Instaladas en T-10a y T-10b (R-104), con versión exacta:** zod 4.6.7 (T-10a), express 5.3.0, cors 2.8.6, supertest 7.3.1, @types/express 5.0.6, @types/cors 2.8.19 y @types/supertest 7.2.1. supertest 7.3.1 y no 7.3.2, que solo tenía 8 días. Sin `dotenv`: Node 24 lee el `.env` con `--env-file-if-exists` |
 | T-11 | better-sqlite3 y @types/better-sqlite3 | Stack. **Instaladas en T-11 (R-105), con versión exacta:** better-sqlite3 13.0.3 y @types/better-sqlite3 9.6.0 (etiqueta `ts6.0`). La 13.1.1 y la 13.2.0 tenían menos de dos semanas. Trae binarios precompilados (`prebuilds/`, incluido `linux-x64`), así que no compila nada al instalarse |
-| T-24a | react-router, @tanstack/react-query | Stack |
+| T-24a | react-router, @tanstack/react-query | Stack. **Instaladas en T-24a (R-118), con versión exacta:** react-router 8.5.1 y @tanstack/react-query 5.105.3. Las 5.106 a 5.108 de @tanstack/react-query tenían menos de dos semanas |
+| T-24a | @types/node (24.19.2) en el frontend | **Añadida en T-24a (R-118, decisión del usuario).** Implícita: el test de lint usa `node:path` e `import.meta.dirname`. Se referencia solo en ese test, para no llevar los tipos de Node al código del navegador |
 | T-26 | big.js y @types/big.js | Spec RF-42 |
 | T-27 | zod@4 en el frontend | Spec RF-41 |
 
@@ -520,6 +522,16 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
   - Lint: una feature que importa otra feature falla, salvo la superficie pública de `currency`; un `fetch` fuera de `api/` y `features/currency` falla (R-83).
 - **Tests:** router y test de las reglas de ESLint.
 - **Fuera de alcance:** componentes de estado compartidos (T-24b), llamadas HTTP y divisa.
+- **Decisiones de T-24a (R-118):**
+  - Archivos añadidos: `frontend/package.json` y `package-lock.json` (dependencias). Borrados: `frontend/src/App.tsx` y `App.test.tsx` de T-02, porque `router.test.tsx` sustituye al smoke test (decisión del usuario).
+  - Rutas: `/` → Dashboard, `/customers/new` → NewCustomer y `/customers/:id` → CustomerDetail, todas bajo `Layout` (decisión del usuario). React Router da prioridad a la ruta estática. No hay ruta comodín, porque la spec no la pide (decisión del usuario).
+  - `createQueryClient()` es una fábrica (cada test tiene su propio cliente) con `retry: false` y `refetchOnWindowFocus: false`; las mutaciones también van con `retry: false`.
+  - `router.tsx` exporta `routes`, que los tests montan con `createMemoryRouter`, y `createAppRouter()` con `createBrowserRouter`. `main.tsx` usa `RouterProvider` de `react-router/dom` e importa `global.css`.
+  - Layout: cabecera con el título enlazado a `/`, `<main>` con `<Outlet>` y un pie vacío hasta T-28. Las páginas son placeholders con su `h1`.
+  - `.env.example`: `VITE_API_URL=http://localhost:3000` (sin `/api`, que lo añade el cliente) y `VITE_FX_URL=https://open.er-api.com/v6/latest/EUR`.
+  - ESLint: un bloque por feature, con la lista fija `FEATURES` (`customers`, `simulation` y `currency`). Otra feature se detecta por el segmento `/<nombre>/`, sea cual sea la profundidad del import. De `currency` solo se aceptan `Money`, `MoneyTotal` y `useCurrency`, con o sin extensión. Las features no importan `pages/` ni `app/`; `api/` no importa `features/`, `pages/` ni `app/`; `shared/` no importa `features/`, `pages/`, `app/` ni `api/`. Una feature nueva hay que añadirla a `FEATURES`.
+  - `fetch`: `no-restricted-globals` y `no-restricted-properties` (`window`, `globalThis` y `self`) en `frontend/src`, salvo en `api/`, `features/currency/` y los tests.
+  - Test de lint: los fixtures son strings en `frontend/src/test/lint/fixtures.ts`, linteados con `lintText` y una ruta virtual, así que no hay que tocar `frontend/tsconfig.json`. El test corre en entorno `node` y referencia `@types/node` con `/// <reference types="node" />`.
 
 ### T-24b · Componentes de estado y paginación [2 h]
 - **Objetivo:** componentes compartidos de carga, error con reintento, vacío y paginación.
@@ -529,6 +541,11 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Criterios:** el botón de reintento llama a su callback; la paginación deshabilita «anterior» en la página 1 y «siguiente» en la última, calculada con `total` y `pageSize`.
 - **Tests:** componentes.
 - **Fuera de alcance:** datos reales.
+- **Decisiones de T-24b (R-119):**
+  - `LoadingState({ label? })` con `role="status"` y `Cargando…` por defecto; `EmptyState({ message })`.
+  - `ErrorState({ message?, onRetry? })` con `role="alert"`. Solo muestra «Reintentar» si llega `onRetry`, para el 404 sin reintento de T-31a (R-91).
+  - `Pagination({ page, pageSize, total, onPageChange })` es un `<nav aria-label="Paginación">` con «Anterior», «Página X de Y» y «Siguiente». La página la guarda quien usa el componente. Se exporta `totalPages(total, pageSize) = max(1, ceil(total / pageSize))`: con `total = 0` hay una página y los dos botones quedan deshabilitados.
+  - Un solo `states.module.css` para los cuatro componentes. Tests descriptivos sin CA: `states.test.tsx` y `Pagination.test.tsx`.
 
 ### T-25 · Cliente HTTP y capa `api/` [2–3 h]
 - **Objetivo:** cliente con `VITE_API_URL + /api`, `signal`, interpretación del formato 5.1 → `ApiError { status, code, details }`, funciones y tipos por recurso, y query keys.

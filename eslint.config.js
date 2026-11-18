@@ -6,6 +6,14 @@ import tseslint from 'typescript-eslint';
 // Los patrones usan `regex` para cubrir imports relativos con o sin extensión `.ts`.
 
 const SRC = 'backend/src';
+const FE = 'frontend/src';
+
+// Features del frontend (architecture §1). Una feature nueva hay que añadirla aquí.
+const FEATURES = ['customers', 'simulation', 'currency'];
+// Superficie pública de `currency` (architecture §3), con o sin extensión.
+const CURRENCY_PUBLIC = '(Money|MoneyTotal|useCurrency)(\\.tsx?)?$';
+const FETCH_MESSAGE =
+  'HTTP solo desde src/api/ o features/currency (CLAUDE.md, architecture §3, R-83).';
 
 /** @param {string} regex @param {string} message */
 const deny = (regex, message) => ({ regex, message });
@@ -78,4 +86,56 @@ export default tseslint.config(
   ),
   layerRule([`${SRC}/modules/**/*.routes.ts`], [layer('service'), layer('repository')]),
   layerRule([`${SRC}/http/**/*.ts`], [folder('modules')]),
+
+  // Capas del frontend (architecture §3, ADR-007, R-83).
+  ...featureRules(),
+  layerRule(
+    [`${FE}/shared/**/*.{ts,tsx}`],
+    [folder('features'), folder('pages'), folder('app'), folder('api')],
+  ),
+  layerRule([`${FE}/api/**/*.{ts,tsx}`], [folder('features'), folder('pages'), folder('app')]),
+
+  // HTTP solo desde `api/` (backend propio) y `features/currency` (API de tipos de cambio).
+  // Los tests quedan fuera porque simulan `fetch`.
+  {
+    files: [`${FE}/**/*.{ts,tsx}`],
+    ignores: [`${FE}/api/**`, `${FE}/features/currency/**`, '**/*.test.{ts,tsx}', `${FE}/test/**`],
+    rules: {
+      'no-restricted-globals': ['error', { name: 'fetch', message: FETCH_MESSAGE }],
+      'no-restricted-properties': [
+        'error',
+        ...['window', 'globalThis', 'self'].map((object) => ({
+          object,
+          property: 'fetch',
+          message: FETCH_MESSAGE,
+        })),
+      ],
+    },
+  },
 );
+
+/**
+ * Un bloque por feature: no puede importar otra feature (salvo la superficie pública de
+ * `currency`), ni `pages/` ni `app/`. Las features se buscan como segmento `/<nombre>/`, así que
+ * la regla no depende de la profundidad del import relativo.
+ */
+function featureRules() {
+  return FEATURES.map((feature) => {
+    const others = FEATURES.filter((other) => other !== feature && other !== 'currency');
+    const patterns = others.map((other) =>
+      deny(`(^|/)${other}/`, `Una feature no puede importar otra ('${other}/', architecture §3).`),
+    );
+    if (feature !== 'currency') {
+      patterns.push(
+        deny(
+          `(^|/)currency/(?!${CURRENCY_PUBLIC})`,
+          'De currency solo se puede importar Money, MoneyTotal o useCurrency (architecture §3).',
+        ),
+      );
+    }
+    return layerRule(
+      [`${FE}/features/${feature}/**/*.{ts,tsx}`],
+      [...patterns, folder('pages'), folder('app')],
+    );
+  });
+}
