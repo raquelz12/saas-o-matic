@@ -2,8 +2,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
+  gap: var(--space-2) var(--space-3);
 }
 
 .field {
@@ -11,14 +10,19 @@
   align-items: center;
   gap: var(--space-2);
   font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
 }
 
 .select {
-  padding: var(--space-1) var(--space-2);
+  min-height: 2.25rem;
+  padding: 0 var(--space-3);
   font: inherit;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  font-weight: 600;
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
+  cursor: pointer;
 }
 
 .select:disabled {
@@ -28,5 +32,30 @@
 .date {
   margin: 0;
   color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* Los estados de carga y error compartidos (`states.module.css`) están pensados para el contenido.
+   Dentro de la cabecera se compactan a una línea, con el mismo texto y el mismo botón (RF-43). El
+   selector `div[role]` gana en especificidad a `.state` y `.error`, sea cual sea el orden del CSS. */
+.selector div[role='status'],
+.selector div[role='alert'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+  text-align: left;
+}
+
+.selector div[role='status'] {
+  border-color: transparent;
+  background: transparent;
+}
+
+.selector div[role='alert'] button {
+  min-height: 1.75rem;
+  padding: 0 var(--space-2);
   font-size: var(--font-size-sm);
 }

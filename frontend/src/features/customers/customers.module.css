@@ -5,80 +5,188 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
 .header h1 {
   margin: 0;
 }
 
+/* Acción principal de la pantalla: píldora en tinta con el signo «+» dibujado delante. */
 .newButton {
-  padding: var(--space-2) var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 1.25rem 0 1rem;
+  font-weight: 600;
   color: var(--color-primary-contrast);
   background: var(--color-primary);
-  border-radius: var(--radius);
+  border-radius: var(--radius-pill);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.12),
+    0 10px 28px -10px rgb(94 230 255 / 0.55);
   text-decoration: none;
+  transition:
+    background-color var(--duration-hover) ease,
+    transform var(--duration-press) var(--ease-out);
 }
 
+.newButton::before {
+  content: '';
+  width: 0.75rem;
+  height: 0.75rem;
+  background:
+    linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 2px 100% no-repeat;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .newButton:hover {
+    background: var(--color-primary-hover);
+  }
+}
+
+.newButton:active {
+  transform: scale(0.97);
+}
+
+/* Buscador en píldora con una lupa dibujada en CSS (sin tocar el componente). */
 .search {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  margin-bottom: var(--space-3);
+  gap: var(--space-2);
+  max-width: 28rem;
+  margin-bottom: var(--space-4);
 }
 
 .searchLabel {
   font-size: var(--font-size-sm);
+  font-weight: 550;
   color: var(--color-text-muted);
 }
 
 .searchInput {
   width: 100%;
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3) 0 2.75rem;
   font: inherit;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  color: var(--color-text);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%239aa0b4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E")
+    1rem 50% / 18px 18px no-repeat var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  backdrop-filter: var(--blur-glass);
+  transition:
+    border-color var(--duration-hover) ease,
+    box-shadow var(--duration-hover) ease;
+}
+
+.searchInput:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 4px var(--color-accent-ring);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 }
 
 .list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* Las tarjetas entran escalonadas 40 ms; a partir de la octava, todas a la vez. */
+.list > li {
+  animation: rise-in var(--duration-enter) var(--ease-out) backwards;
+}
+
+.list > li:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.list > li:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.list > li:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.list > li:nth-child(5) {
+  animation-delay: 160ms;
+}
+
+.list > li:nth-child(6) {
+  animation-delay: 200ms;
+}
+
+.list > li:nth-child(n + 7) {
+  animation-delay: 240ms;
+}
+
 .card {
   display: block;
   height: 100%;
-  padding: var(--space-3);
+  padding: 1.375rem 1.5rem;
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: var(--blur-glass);
   text-decoration: none;
+  transition:
+    transform var(--duration-hover) var(--ease-out),
+    box-shadow var(--duration-hover) var(--ease-out),
+    border-color var(--duration-hover) ease;
 }
 
-.card:hover,
+/* Al pasar el ratón la tarjeta se eleva 2 px y su borde se ilumina en cian: invita a abrir el
+   detalle. */
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    transform: translateY(-2px);
+    border-color: rgb(94 230 255 / 0.35);
+    box-shadow: var(--shadow-card-hover);
+  }
+}
+
 .card:focus-visible {
-  border-color: var(--color-primary);
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow:
+    0 0 0 4px var(--color-accent-ring),
+    var(--shadow-card);
 }
 
 .name {
-  font-size: var(--font-size-md);
+  margin-bottom: var(--space-4);
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
   overflow-wrap: anywhere;
 }
 
 .fields {
   display: grid;
-  gap: var(--space-1);
+  gap: 0.625rem;
   margin: 0;
   font-size: var(--font-size-sm);
 }
 
 .field {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
 }
@@ -89,6 +197,26 @@
 
 .field dd {
   margin: 0;
+  font-weight: 500;
   text-align: right;
   overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+/* El plan (último campo de la tarjeta) como etiqueta con el acento suave. */
+.field:last-child dd {
+  flex: none;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border-radius: var(--radius-pill);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card:hover {
+    transform: none;
+  }
 }

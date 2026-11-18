@@ -138,7 +138,8 @@ export type SimulatorProps = {
 };
 
 // Simulador del detalle del cliente (RF-38, RF-39): controles, proyección en tiempo real y
-// guardado. Guardar no resetea los controles.
+// guardado, debajo de la proyección para ver el precio antes de guardar. Guardar no resetea los
+// controles.
 export function Simulator({ customerId, onSaved }: SimulatorProps) {
   const { users, texts, input, valid, update } = useSimulatorControls(customerId);
   const preview = usePreview(input);
@@ -165,8 +166,8 @@ export function Simulator({ customerId, onSaved }: SimulatorProps) {
           />
         ))}
       </div>
-      <SaveSimulationButton input={input} valid={valid} onSaved={onSaved} />
       <Projection preview={preview} />
+      <SaveSimulationButton input={input} valid={valid} onSaved={onSaved} />
     </section>
   );
 }

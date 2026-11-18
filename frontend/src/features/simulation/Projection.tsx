@@ -25,7 +25,7 @@ function ProjectionCard({ projection }: { projection: SimulationPreview }) {
     <article className={styles.card} aria-label="Proyección">
       <dl className={styles.fields}>
         {fields.map(([label, value]) => (
-          <div key={label} className={styles.field}>
+          <div key={label} className={label === 'Total' ? styles.totalField : styles.field}>
             <dt>{label}</dt>
             <dd>{value}</dd>
           </div>

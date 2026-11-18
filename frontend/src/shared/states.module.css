@@ -1,39 +1,61 @@
 /* Estilos compartidos de los estados de carga, error y vacío, y de la paginación (RF-43, RF-28). */
 .state {
-  padding: var(--space-4);
+  padding: var(--space-5) var(--space-4);
   text-align: center;
   color: var(--color-text-muted);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 1.5px dashed var(--color-border-strong);
   border-radius: var(--radius);
 }
 
+/* El error vive dentro del bloque que ha fallado: una frase y, al lado, «Reintentar». */
 .error {
-  color: var(--color-danger);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  text-align: left;
+  color: var(--color-danger-text);
   background: var(--color-danger-bg);
-  border-color: var(--color-danger);
+  border: 1px solid var(--color-danger-border);
 }
 
 .message {
   margin: 0;
 }
 
+/* Botón secundario en píldora: «Reintentar» y la paginación. El principal de cada pantalla es otro. */
 .button {
-  padding: var(--space-2) var(--space-3);
-  color: var(--color-primary-contrast);
-  background: var(--color-primary);
+  min-height: 2.5rem;
+  padding: 0 1.125rem;
+  font-weight: 550;
+  color: var(--color-text);
+  background: var(--color-surface);
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-pill);
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
+  backdrop-filter: var(--blur-glass);
   cursor: pointer;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .button:not(:disabled):hover {
+    background: var(--color-surface-sunken);
+  }
+}
+
+/* Deshabilitado legible: texto gris y borde suave, sin desaparecer. */
 .button:disabled {
-  opacity: 0.5;
+  color: var(--color-text-muted);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--color-border);
   cursor: not-allowed;
 }
 
 .error .button {
-  margin-top: var(--space-3);
+  flex: none;
 }
 
 .pagination {
@@ -42,5 +64,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
-  margin-top: var(--space-3);
+  margin-top: var(--space-5);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
 }
