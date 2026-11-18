@@ -1,0 +1,94 @@
+/* Dashboard de clientes: cabecera, buscador y rejilla de tarjetas (RF-34). */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.header h1 {
+  margin: 0;
+}
+
+.newButton {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-primary-contrast);
+  background: var(--color-primary);
+  border-radius: var(--radius);
+  text-decoration: none;
+}
+
+.search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.searchLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.searchInput {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: block;
+  height: 100%;
+  padding: var(--space-3);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  text-decoration: none;
+}
+
+.card:hover,
+.card:focus-visible {
+  border-color: var(--color-primary);
+}
+
+.name {
+  font-size: var(--font-size-md);
+  overflow-wrap: anywhere;
+}
+
+.fields {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.field {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.field dt {
+  color: var(--color-text-muted);
+}
+
+.field dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
