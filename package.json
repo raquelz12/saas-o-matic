@@ -15,7 +15,8 @@
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm test --workspaces",
     "db:migrate": "npm run db:migrate -w backend",
-    "db:seed": "npm run db:seed -w backend"
+    "db:seed": "npm run db:seed -w backend",
+    "db:seed:demo": "npm run db:seed:demo -w backend"
   },
   "devDependencies": {
     "concurrently": "10.0.7",
