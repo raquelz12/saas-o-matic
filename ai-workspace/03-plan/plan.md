@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.33)
+# SaaS-O-Matic — Plan de implementación (v.34)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -34,6 +34,7 @@
 - v.31 — Decisiones tomadas al implementar T-29a y T-29b (05-review-log.md, R-125 y R-126): la página vuelve a 1 cuando cambia el texto debounced, no en cada tecla; `pageSize` no se envía; el plan se pinta con su código; `maxLength` de 100 en el buscador; un único texto de estado vacío; `customers.module.css` como CSS compartido; `Layout.test.tsx` añadido a los archivos de T-29b.
 - v.32 — Decisiones tomadas al implementar T-30 (05-review-log.md, R-127): `customerFormErrors.ts` añadido a sus archivos; en el cliente, el identificador fiscal solo comprueba el mínimo de 5 tras trim y colapso, y el máximo lo decide el backend; tabla de textos por issue; aviso general para los errores sin campo; validación al enviar y error que se quita al editar; países ordenados por nombre; se invalida `customers.all`.
 - v.33 — Decisiones tomadas al implementar T-31a y T-31b (05-review-log.md, R-128 y R-129): `CustomerDetail.tsx` y su test añadidos a los archivos de T-31b, y CA-99 probado en `CustomerDetail.test.tsx`; la tarjeta de detalle muestra todos los campos salvo `id`, con el plan por su etiqueta; `h1` fijo «Detalle del cliente» y el nombre como `h2`; un `:id` sin formato válido muestra «Cliente no encontrado.» sin petición; el historial se pide solo cuando ha cargado el cliente; formatos de fecha, tasa y tramos; textos de los estados.
+- v.34 — Decisiones tomadas al implementar T-32 (05-review-log.md, R-130): `CustomerDetail.tsx` y su test añadidos a los archivos de T-32, con el simulador entre la tarjeta y el historial; valores iniciales 1 usuario, 0 GB y 0 llamadas; un valor no válido en GB o llamadas no lanza preview y marca el campo; tramos con `TierBreakdown`; textos de carga, error y aviso; última proyección válida guardada en estado; tests de la feature con su propio `QueryClient`.
 
 ## Contexto
 
@@ -756,13 +757,22 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Objetivo:** slider de 1–500 y controles de GB y llamadas dentro de los rangos de 3.4, `usePreview` (key con valores debounced a 250 ms, `signal`, última proyección válida conservada con aviso) y proyección con base, impuesto, total y tramos.
 - **Referencias:** RF-38, RF-43 (fallo del preview), spec 1.7 (slider frente a API), 3.7, ADR-005.
 - **Depende de:** T-31b.
-- **Archivos:** en `frontend/src/features/simulation/`: `Simulator.tsx` y su `.module.css`, `Projection.tsx`, `usePreview.ts` y sus tests.
+- **Archivos:** en `frontend/src/features/simulation/`: `Simulator.tsx` y su `.module.css`, `Projection.tsx`, `usePreview.ts` y sus tests. **Añadidos en T-32 (R-130):** `frontend/src/pages/CustomerDetail.tsx` y `CustomerDetail.test.tsx`.
 - **Criterios:**
   - CA-92.
   - Solo se pinta la última respuesta; las anteriores se cancelan.
   - Si el preview falla, se mantiene la proyección anterior con un aviso.
 - **Tests:** componente y hook con timers falsos.
 - **Fuera de alcance:** guardado.
+- **Decisiones de T-32 (R-130):**
+  - Archivos: se añade `CustomerDetail.tsx`, porque el simulador se compone en la página y las features no se importan entre sí (decisión del usuario). `<Simulator customerId>` va entre la tarjeta y el historial, y se monta solo cuando ha cargado el cliente.
+  - Los controles empiezan en 1 usuario, 0 GB y 0 llamadas (decisión del usuario).
+  - Slider `type="range"` de 1 a 500, con el valor visible en un `<output>`; el `onChange` ajusta además el valor al rango (spec 1.7, 3.7). GB (0–100 000) y llamadas (0–1 000 000) son `type="number"`.
+  - Si GB o llamadas no son un entero dentro del rango (vacío, decimal o fuera de rango), no se lanza el preview y se mantiene la última proyección. El campo lleva `aria-invalid` y, enlazado con `aria-describedby`, «Debe ser un entero entre 0 y 100.000.» o «… y 1.000.000.» (decisión del usuario).
+  - `usePreview(input)` hace debounce de 250 ms y usa `queryKeys.simulations.preview(debounced)` con `keepPreviousData`, pasando su `signal` a `previewSimulation`. Al cambiar la key, TanStack aborta la petición anterior y solo se pinta la key actual. La última proyección válida se guarda en estado durante el render, porque `keepPreviousData` no cubre el error. El simulador solo cambia el `input` cuando los tres controles son válidos.
+  - La proyección (`<article aria-label="Proyección">`) muestra base e impuesto con `<Money>`, el total con `<MoneyTotal>` y los tramos con `TierBreakdown`, cerrado por defecto (decisión del usuario).
+  - Estados (decisión del usuario): «Calculando proyección…»; sin proyección previa, «No se ha podido calcular la proyección.» con «Reintentar»; con proyección previa, esta se mantiene con el aviso «No se ha podido actualizar la proyección. Se muestra la última calculada.» y «Reintentar» (`refetch`).
+  - Tests: los de la feature crean su propio `QueryClient` sin reintentos, porque una feature no puede importar `app/`, y sustituyen `useCurrency` con `vi.mock`. `usePreview.test.ts`, con timers falsos y un `fetch` que rechaza al abortar, prueba el debounce, el abort de la petición anterior, que una respuesta tardía no se pinta, y el fallo con y sin proyección previa. `Simulator.test.tsx` cubre CA-92 y, sin CA, los valores iniciales, la carga, el preview de cada control, los valores no válidos y los dos errores con reintento. `CustomerDetail.test.tsx` comprueba que el simulador aparece en el detalle con el `customerId` del cliente.
 
 ### T-33 · Guardado de simulación [2 h]
 - **Objetivo:** `useSaveSimulation`, botón deshabilitado mientras `isPending`, invalidación del historial con vuelta a la página 1 y formulario que conserva sus valores.

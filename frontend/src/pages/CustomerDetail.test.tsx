@@ -75,6 +75,8 @@ function respond(input: Parameters<typeof fetch>[0]): Response {
   if (path === '/api/customers') return json(page([customer]));
   if (path === '/api/customers/7/simulations') return json(page([simulation]));
   if (path === '/api/customers/7') return customerResponse();
+  // El preview responde con los importes de `simulation`: basta para ver que se pinta.
+  if (path === '/api/simulations/preview') return json(simulation);
   return json(errorBody('NOT_FOUND'), 404);
 }
 
@@ -142,6 +144,18 @@ describe('CustomerDetail', () => {
       ),
     );
     expect(await screen.findByRole('article', { name: 'Simulación 3' })).toBeTruthy();
+  });
+
+  it('muestra el simulador con la proyección del preview de este cliente', async () => {
+    renderAt('/customers/7');
+    const projection = await screen.findByRole('article', { name: 'Proyección' });
+    expect(field(projection, 'Total')).toBe(
+      new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(169.4),
+    );
+    const previewCall = fetchMock.mock.calls.find(
+      ([input]) => backendPath(input) === '/api/simulations/preview',
+    );
+    expect(JSON.parse(String(previewCall?.[1]?.body))).toMatchObject({ customerId: 7, users: 1 });
   });
 
   it('CA-105: un nombre con <script> se pinta como texto en la tarjeta de detalle', async () => {

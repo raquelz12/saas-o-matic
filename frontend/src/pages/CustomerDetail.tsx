@@ -2,6 +2,7 @@ import { useParams } from 'react-router';
 import { CustomerDetailCard } from '../features/customers/CustomerDetailCard.tsx';
 import { isNotFoundError, useCustomer } from '../features/customers/useCustomer.ts';
 import { SimulationHistory } from '../features/simulation/SimulationHistory.tsx';
+import { Simulator } from '../features/simulation/Simulator.tsx';
 import { ErrorState } from '../shared/ErrorState.tsx';
 import { LoadingState } from '../shared/LoadingState.tsx';
 
@@ -37,6 +38,7 @@ function CustomerDetailContent({ customerId }: { customerId: number }) {
   return (
     <>
       <CustomerDetailCard customer={query.data} />
+      <Simulator customerId={customerId} />
       <SimulationHistory customerId={customerId} />
     </>
   );
