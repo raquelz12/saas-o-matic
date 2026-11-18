@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // TypeScript 6 no carga @types automáticamente (igual que backend/tsconfig.json).
+    "types": ["node"]
+  },
+  "include": ["*.ts"]
+}

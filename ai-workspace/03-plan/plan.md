@@ -1,4 +1,4 @@
-# SaaS-O-Matic — Plan de implementación (v.36)
+# SaaS-O-Matic — Plan de implementación (v.38)
 
 ## Changelog
 - v.01 — Propuesta inicial a partir de esquema-inicial.md.
@@ -38,6 +38,7 @@
 - v.35 — Decisiones tomadas al implementar T-33 (05-review-log.md, R-131): la página del historial sube a `CustomerDetail.tsx`, que se añade con su test a los archivos de T-33, y `<Simulator onSaved>` la devuelve a 1; `useSimulationHistory(customerId, page)`; botón en `SaveSimulationButton.tsx`, deshabilitado con `isPending` o con un control no válido y con una `ref` contra el doble clic en el mismo tick; sin mensaje de éxito y con aviso si falla; tests del guardado en `SimulatorSave.test.tsx` y CA-93 en `pages/CustomerDetailSave.test.tsx`.
 - v.36 — Decisiones tomadas al implementar T-34 (05-review-log.md, R-132): los clientes demo pasan por `buildCreateCustomerSchema` y `customersService.create`; script `db:seed:demo` también en el `package.json` raíz (añadido a sus archivos); el CLI ejecuta antes `prepareDatabase`; clientes existentes comprobados con `customersService.search`, en la misma transacción que las inserciones; 10 clientes que cubren los 7 países y los 3 planes.
 - v.37 — Decisiones tomadas al implementar T-35 (05-review-log.md, R-133): arranque con `npm ci --ignore-scripts`, porque `npm ci` intenta compilar better-sqlite3 con node-gyp aunque trae binarios precompilados; sección «Comandos» de CLAUDE.md actualizada; el README enlaza el contrato de la API en lugar de copiarlo; criterio verificado en un clon limpio.
+- v.38 — Decisiones tomadas al implementar T-36 (05-review-log.md, R-134): `scripts/check-ca.ts` sin dependencias, que ignora los comentarios; `check:ca` en CI; `scripts/tsconfig.json` dentro de `typecheck` (`package.json` raíz añadido a sus archivos); matriz generada por el script en `ai-workspace/06-trazabilidad.md`; CA-91 registrado desde T-31b y pendiente de repetir tras el rediseño del CSS; desviaciones en dos grupos.
 
 ## Contexto
 
@@ -833,6 +834,12 @@ Todas las rutas de este hito cumplen además dos criterios (R-88): una query des
 - **Criterios:** todos los CA tienen al menos un test o están marcados como manuales.
 - **Tests:** el script en CI.
 - **Fuera de alcance:** funcionalidades nuevas.
+- **Decisiones de T-36 (R-134):**
+  - `scripts/check-ca.ts`, sin dependencias y ejecutado con `node`. Quita los comentarios antes de buscar `CA-\d+`, para no contar menciones como la de `commonSchemas.test.ts`. Falla si un CA de la spec no tiene test ni es manual, si un test cita un CA que no existe o si un CA manual tiene test. Manuales: `MANUAL = ['CA-91']`.
+  - `npm run check:ca` en el `package.json` raíz y en `ci.yml` después de `npm test`. `scripts/tsconfig.json` y `tsc -p scripts` dentro de `typecheck` (opción 2a, decisión del usuario; `package.json` raíz añadido a los archivos).
+  - La matriz se genera con `npm run check:ca -- --matrix` y está en `ai-workspace/06-trazabilidad.md` (opción 1a, decisión del usuario): 109 CA, 108 con test y CA-91 manual.
+  - CA-91 se registra con la verificación de T-31b. Hay que repetirla después del rediseño del CSS, porque el simulador y los estilos de `review-front` son posteriores (opción 3a, decisión del usuario).
+  - Desviaciones en dos grupos: lo que se aparta de la spec o queda fuera de ella, y los huecos de la spec resueltos con una decisión (decisión del usuario). El seed demo queda documentado como herramienta fuera del contrato (R-93).
 
 ---
 
@@ -926,7 +933,7 @@ Primero la tarea con el test de API (o de componente, en el frontend). Entre par
 | 109 | T-20 | — |
 | 110 | T-18 | — |
 
-**CA sin tarea:** ninguno. **CA sin test automático:** CA-91 (verificación manual en T-31b y registrada en T-36). **CA inexistente:** CA-108 (error de rango en R-78; ver la observación 7).
+**CA sin tarea:** ninguno. **CA sin test automático:** CA-91 (verificación manual en T-31b y registrada en T-36, en [06-trazabilidad.md](../06-trazabilidad.md)). **CA inexistente:** CA-108 (error de rango en R-78; ver la observación 7).
 
 ---
 
